@@ -3,28 +3,52 @@
 
 ##################################### LINEAR MODEL FOR DGE ###################################
 # Load necessary libraries
-.libPaths(c("/usr/lib/R/library"))
+.libPaths()
+
+# Install packages
+# Ensure BiocManager is available
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager")
+}
+
+# Full package list
+pkgs <- c(
+  "edgeR",
+  "limma",
+  "tidyr",
+  "dplyr",
+  "ggplot2",
+  "EnhancedVolcano",
+  "optparse",
+  "stringr",
+  "tibble",
+  "pheatmap",
+  "EnsDb.Hsapiens.v86",
+  "AnnotationDbi"
+)
+
+# Install everything (BiocManager handles both CRAN + Bioconductor)
+BiocManager::install(pkgs, ask = FALSE, update = FALSE)
+
+# Load libraries
 library(edgeR)
 library(limma)
-library(variancePartition)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(EnhancedVolcano)
 library(optparse)
-library(dreamlet)
 library(stringr)
 library(tibble)
 library(pheatmap)
-library(lme4)
+# library(lme4) # for mixed model only
 library(EnsDb.Hsapiens.v86)
 library(AnnotationDbi)
-library(BiocParallel)
-register(MulticoreParam(workers = 8)) # parallelize to make dream work faster
+
 
 
 # Define base directory
-base_dir <- "DGE_results_LM_publication"
+base_dir <- "/home/rstudio-server"
 dir.create(base_dir, showWarnings = FALSE)
 
 
@@ -34,29 +58,120 @@ dir.create(base_dir, showWarnings = FALSE)
 # traits_macrocat <- read.csv("/genesandhealth/red/DanielaZanotti/data/disease/name_disease.csv", header = TRUE) # extended disease name for plotting and disease apparatus macrocategories
 
 # phenotypes case-controls
-phenotypes <-  read.table("/genesandhealth/red/DanielaZanotti/data/Freeze3/disease/disease_cases_controls_all.tsv", header = TRUE, sep = "\t", check.names = FALSE)      
+phenotypes <-  read.table("/home/rstudio-server/cases_controls_all.tsv", header = TRUE, sep = "\t", check.names = FALSE)      
 str(phenotypes)
 head(phenotypes)
 
-# load PCA object
-pca_list <- readRDS("/home/ivm/LMM_DGE_results/pca_list.rds")
-
-# load processed counts matrix
-filtered_counts_list <- readRDS("/home/ivm/Desktop/Beatrice_Costa/results_DEA/filtered_counts_list_fixed.rds")
+# # load PCA object
+# pca_list <- readRDS("/home/ivm/LMM_DGE_results/pca_list.rds")
+# 
+# # load processed counts matrix
+# filtered_counts_list <- readRDS("/home/ivm/Desktop/Beatrice_Costa/results_DEA/filtered_counts_list_fixed.rds")
 
 # master table - donor level (each row is a donor, already aggregated)
-master_table_F3 <- read.table("/genesandhealth/red/DanielaZanotti/CARDINAL_db/v4/data/v4_master_table.tsv", header = TRUE, sep = "\t", check.names = FALSE)      # Master table contains: age, sex, ethnicity, date at PBMC collection
+master_table_F3 <- read.csv("/home/rstudio-server/F3_UKB_adata_obs_with_metadata.csv")      # Master table contains: age, sex, ethnicity, date at PBMC collection
 str(master_table_F3)
 head(master_table_F3)
 
-# obs - cell level (each row is a cell, not aggregated by donor like pseudobulks) - for ID conversion with phenotypes
-obs_clean <- read.table("/genesandhealth/red/DanielaZanotti/data/Freeze3/obs_gh-ContaminationFree-noDoublets-annotated-QCed-counts_CLEAN.tsv", header = TRUE, sep = "\t", check.names = FALSE)   # Vacutainer ID
-str(obs_clean)
-head(obs_clean)
+# # obs - cell level (each row is a cell, not aggregated by donor like pseudobulks) - for ID conversion with phenotypes
+# obs_clean <- read.table("/genesandhealth/red/DanielaZanotti/data/Freeze3/obs_gh-ContaminationFree-noDoublets-annotated-QCed-counts_CLEAN.tsv", header = TRUE, sep = "\t", check.names = FALSE)   # Vacutainer ID
+# str(obs_clean)
+# head(obs_clean)
 
+############### Start processing the pseudobulk files #########################
+##### load Freeze 3 pseudobulk data CT2 #####
+# Create counts directories
+dir_bangpaki <- "/home/rstudio-server/celltype_2/ukb-qced-cells/"
 
+# extract everything before the first dot
+all_files <- list.files(dir_bangpaki, full.names = FALSE)
+celltypes <- unique(sub("\\..*", "", all_files))
+exclude <- c(
+  "gene_exp_variance",
+  "make_parquet",
+  "old_h5ad",
+  "old_tables",
+  "parquet_dataset_counts_long",
+  "parquet_dataset_long",
+  "update_sample_id",
+  "update_sample_ids"
+)
 
-############### Start processing the data #########################
+celltypes <- setdiff(celltypes, exclude)
+print(celltypes) # 33 celltypes
+
+# remove those that are not cell types
+
+# Set up ncell filter: at least 10 cells per donor per celltype (based on tables in: *ncells_x_donor.tsv)
+# List all counts files
+counts_files <- list.files(dir_bangpaki, pattern = "\\.raw\\.agg_sum\\.tsv$", full.names = TRUE)
+
+# Output directory for filtered counts
+out_dir <- file.path(dir_bangpaki, "filtered_counts")
+dir.create(out_dir, showWarnings = FALSE)
+
+# # Loop over counts files
+# filtered_counts_list <- list()
+# 
+# for(cf in counts_files){
+#   # ---- 1. Extract celltype name from filename
+#   cf <- counts_files[6]
+#   celltype <- str_replace(basename(cf), ".raw.agg_sum.tsv", "")
+#   
+#   message("Processing: ", celltype)
+#   
+#   # ---- 2. Match ncells file
+#   ncells_file <- file.path(dir_bangpaki, paste0(celltype, ".ncells_x_donor.tsv"))
+#   if(!file.exists(ncells_file)){
+#     warning("No ncells file found for ", celltype, "  skipping")
+#     next
+#   }
+#   
+#   # 3. Read counts (genes x donors)
+#   counts <- read.delim(cf, header=TRUE, sep="\t", stringsAsFactors=FALSE)
+#   gene_col <- counts[[1]]
+#   counts_mat <- counts[,-1, drop=FALSE]
+#   rownames(counts_mat) <- gene_col
+#   colnames(counts_mat) <- colnames(counts)[-1]
+#   
+#   # 4. Read ncells, filter rows with N_cells >= 10
+#   ncells <- read.delim(ncells_file, header=TRUE, sep="\t", stringsAsFactors=FALSE)
+#   ncells_keep <- ncells %>%
+#     filter(N_cells >= 10)
+#   
+#   # 5. Keep donors corresponding to rows passing filter
+#   donors_keep <- intersect(colnames(counts_mat), ncells_keep$unique.id)
+#   
+#   counts_filt <- counts_mat[, donors_keep, drop=FALSE]
+#   message("Donors/columns kept: ", ncol(counts_filt), "/", ncol(counts_mat))
+#   
+#   
+#   # 6. Save filtered counts
+#   out_file <- file.path(out_dir, paste0(celltype, "_counts_filtered.tsv"))
+#   write.table(
+#     cbind(gene_id = rownames(counts_filt), counts_filt),
+#     file=out_file,
+#     sep="\t",
+#     row.names=FALSE,
+#     quote=FALSE
+#   )
+#   
+#   # ---- 7. Store in list for R session use
+#   filtered_counts_list[[celltype]] <- counts_filt
+# }
+# 
+# # After loop: list of filtered counts per cell type
+# names(filtered_counts_list)
+# sapply(filtered_counts_list, ncol)
+# 
+# # Now drop celltypes with no donors >= 10 cells
+# filtered_counts_list <- Filter(function(x) ncol(x) > 0, filtered_counts_list)
+# sapply(filtered_counts_list, ncol)
+# 
+# # Save file for safe upload later
+# saveRDS(filtered_counts_list, file = "/home/ivm/Desktop/Beatrice_Costa/results_DEA/filtered_counts_list.rds")
+
+############### Start processing the metadata #########################
 ### Match phenotypes IDs with counts IDs using obs_clean
 # Create column in obs_clean that combines chromium_run_id and then _ donor_id columns to match pseudobulks
 # Create a new column combining chromium_run_id and donor_id
