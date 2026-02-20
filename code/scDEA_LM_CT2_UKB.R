@@ -364,17 +364,19 @@ qc_metrics <- list()
 # counts_list[["T_CD8_prolif"]] <- NULL
 # 
 
-# ct <- "B_exhausted"   
+ ct <- "B_naive"   
 
 for (ct in names(filtered_counts_list)) {
   message("\n===== CELL TYPE: ", ct, " =====")
   
   # Iteratively create results folders for specific outputs
   # Create folder for this cell type
-  ct_dir <- file.path(base_dir, ct)
+  results_dir <- file.path(base_dir, "results_DGE")
+  ct_dir <- file.path(results_dir, ct)
   data_dir  <- file.path(ct_dir, "data")
   plots_dir <- file.path(ct_dir, "plots")
   
+  dir.create(results_dir, showWarnings = FALSE)
   dir.create(ct_dir,  showWarnings = FALSE)
   dir.create(data_dir,  showWarnings = FALSE)
   dir.create(plots_dir, showWarnings = FALSE)
@@ -393,9 +395,6 @@ for (ct in names(filtered_counts_list)) {
   
   bio_covs <- c("smoking_status_combined", "scaled_age", "sex", "scaled_BMI")
   pc_prefix <- "PC"      # columns in pc_scores_df
-  
-  out_dir <- "DGE_results_LM"
-  dir.create(out_dir, showWarnings = FALSE)
   
   counts <- counts_list[[ct]]
   if (is.null(counts) || !is.matrix(counts) || ncol(counts) < 4) {
