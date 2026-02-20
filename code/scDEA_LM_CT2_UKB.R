@@ -417,13 +417,13 @@ for (ct in names(filtered_counts_list)) {
   stopifnot(all(colnames(counts) == meta_sub$donor_uid_tpd_norm))
   
   # Make ancestry and sex as factors so that they are treated by limma as binary variables and not continuous variables
-  meta_sub$sex <- factor(meta_sub$sex, levels = c(1, 2), labels = c("F", "M"))
+  meta_sub$sex <- factor(meta_sub$sex)
   meta_sub$smoking_status_combined <- factor(meta_sub$smoking_status_combined)
   
   # Optional but recommended: set biologically meaningful reference
   # adjust levels as appropriate for your encoding
   levels(meta_sub$sex)
-  meta_sub$sex <- relevel(meta_sub$sex, ref = "M")
+  meta_sub$sex <- relevel(meta_sub$sex, ref = "Male")
   
   # Optional but recommended: set biologically meaningful reference
   # adjust levels as appropriate for your encoding
@@ -444,7 +444,7 @@ for (ct in names(filtered_counts_list)) {
     pc_cols <- grep(paste0("^", pc_prefix), colnames(pc_scores_df), value = TRUE)
     if (length(pc_cols) > 0) {
       pc_cols_use <- head(pc_cols, n_PC_use)
-      pc_scores_sub <- pc_scores_df[match(meta_sub$unique_id, pc_scores_df$unique_id), pc_cols_use, drop = FALSE]
+      pc_scores_sub <- pc_scores_df[match(meta_sub$donor_uid_tpd_norm, pc_scores_df$unique_id), pc_cols_use, drop = FALSE]
       meta_sub[, pc_cols_use] <- pc_scores_sub
     } else {
       pc_cols_use <- character(0)
