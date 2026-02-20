@@ -364,7 +364,7 @@ qc_metrics <- list()
 # counts_list[["T_CD8_prolif"]] <- NULL
 # 
 
- ct <- "B_naive"   
+ # ct <- "B_naive"   
 
 for (ct in names(filtered_counts_list)) {
   message("\n===== CELL TYPE: ", ct, " =====")
@@ -468,7 +468,7 @@ for (ct in names(filtered_counts_list)) {
   # ----- Filter samples & genes -----
   keep_samples <- complete.cases(meta_sub[, c(pc_cols_use, bio_covs), drop = FALSE])
   meta_sub <- meta_sub[keep_samples, , drop = FALSE]
-  counts <- counts[, meta_sub$unique_id, drop = FALSE]
+
   
   # Compute qc metrics
   # qc_metrics[[ct]] <- data.frame(
@@ -662,8 +662,8 @@ for (ct in names(filtered_counts_list)) {
   fit_full <- eBayes(fit_full)
   
   # Test coefficients
-  topTable(fit_full, coef = "sexF")
-  topTable(fit_full, coef = "smoking_status_combinedNever") # Adjust with relevant level/coefficient
+  topTable(fit_full, coef = "sexFemale")
+  topTable(fit_full, coef = "smoking_status_combinedCurrent") # Adjust with relevant level/coefficient
   topTable(fit_full, coef = "scaled_bmi")
   topTable(fit_full, coef = "scaled_age")
   
@@ -678,7 +678,7 @@ for (ct in names(filtered_counts_list)) {
   
   # ----- Test each bio covariate by dropping it -----
   
-  # bio <- "sex"
+   # bio <- "sex"
   
   get_coef_name <- function(bio, coef_names) {
     if (bio %in% coef_names) return(bio)
@@ -792,12 +792,11 @@ for (ct in names(filtered_counts_list)) {
   # ---- Detect all binary disease columns in phenotypes ----
   
   # Optionally skip first N metadata columns (e.g., skip 2:3)
-  # Remove rows containing -1 in any phenotype column (excluding unique_id)
-  phenotypes_sub <- phenotypes[, -c(1,2,3, 348), drop = FALSE]
-  
+ phenotypes_sub <- phenotypes %>%
+    dplyr::filter(!if_any(-eid, ~ . == -1))
   
   # Define disease traits columns
-  id_col <- "unique_id"   # explicitly define ID column name, which is the only non-disease col
+  id_col <- "eid"   # explicitly define ID column name, which is the only non-disease col
   disease_cols <- setdiff(colnames(phenotypes_sub), id_col)
   
   message("Detected ", length(disease_cols), " binary disease phenotypes.")
@@ -832,10 +831,10 @@ for (ct in names(filtered_counts_list)) {
     message("Running DGE for disease: ", disease_col)
     
     # merge phenotype column
-    pheno_sub <- phenotypes[, c("unique_id", disease_col), drop = FALSE]
-    merged_pheno <- merge(meta_sub, pheno_sub, by = "unique_id", all.x = FALSE, all.y = FALSE)
+    pheno_sub <- phenotypes[, c("eid", disease_col), drop = FALSE]
+    merged_pheno <- merge(meta_sub, pheno_sub, by = "eid", all.x = FALSE, all.y = FALSE)
     # convert to character
-    merged_pheno$unique_id <- as.character(merged_pheno$unique_id)
+    merged_pheno$eid <- as.character(merged_pheno$eid)
     
     # keep only Control (0) and Case (1)
     merged_pheno <- merged_pheno[merged_pheno[[disease_col]] %in% c(0,1), , drop = FALSE]
@@ -847,10 +846,10 @@ for (ct in names(filtered_counts_list)) {
     
     # subset counts
     # Remove NAs in $unique_ID
-    merged_pheno <- merged_pheno[!is.na(merged_pheno$unique_id), ]
+    merged_pheno <- merged_pheno[!is.na(merged_pheno$eid), ]
     
     # Intersect IDs
-    shared_ids <- intersect(merged_pheno$unique_id, colnames(counts))
+    shared_ids <- intersect(merged_pheno$donor_uid_tpd_norm, colnames(counts))
     
     if (length(shared_ids) < 3) {
       message("Skipping: too few shared IDs")
@@ -858,23 +857,23 @@ for (ct in names(filtered_counts_list)) {
     }
     
     # Merge and subset counts based on safe IDs
-    merged_pheno <- merged_pheno[match(shared_ids, merged_pheno$unique_id), , drop = FALSE]
-    merged_pheno$unique_id <- as.character(merged_pheno$unique_id)
+    merged_pheno <- merged_pheno[match(shared_ids, merged_pheno$donor_uid_tpd_norm), , drop = FALSE]
+    merged_pheno$donor_uid_tpd_norm <- as.character(merged_pheno$donor_uid_tpd_norm)
     
     saveRDS(merged_pheno, file.path(data_dir, paste0(ct, "_merged_pheno.rds")))
     
     counts_d <- counts[, shared_ids, drop = FALSE]
     
     # Check what was filtered out and why
-    setdiff(merged_pheno$unique_id, colnames(counts))
+    setdiff(merged_pheno$donor_uid_tpd_norm, colnames(counts))
     
-    length(merged_pheno$unique_id)
-    length(unique(merged_pheno$unique_id)) # no duplicates
+    length(merged_pheno$donor_uid_tpd_norm)
+    length(unique(merged_pheno$donor_uid_tpd_norm)) # no duplicates
     length(colnames(counts)) #counts number vs phenotypes length is there is mismatch
-    setdiff(merged_pheno$unique_id, colnames(counts))[1:20]
+    setdiff(merged_pheno$donor_uid_tpd_norm, colnames(counts))[1:20]
     
-    sum(is.na(merged_pheno$unique_id))
-    head(merged_pheno$unique_id[is.na(merged_pheno$unique_id)])
+    sum(is.na(merged_pheno$donor_uid_tpd_norm))
+    head(merged_pheno$donor_uid_tpd_norm[is.na(merged_pheno$donor_uid_tpd_norm)])
     
     # # Compute case/control counts per disease
     # shared <- intersect(colnames(counts_list[[ct]]), merged_pheno$unique_id)
@@ -1058,8 +1057,8 @@ for (ct in names(filtered_counts_list)) {
     cat("non-NA coefficients:",
         sum(!is.na(fit_d$coefficients[, coef_name])), "\n")
     
-    cat("non-NA p-values:",
-        sum(!is.na(fit_d$p.value[, coef_idx])), "\n")
+    # cat("non-NA p-values:",
+    #     sum(!is.na(fit_d$p.value[, coef_idx])), "\n")
     
     cat("residual df:",
         fit_d$df.residual[1], "\n")
