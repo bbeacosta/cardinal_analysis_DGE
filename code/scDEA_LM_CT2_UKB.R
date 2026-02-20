@@ -393,7 +393,7 @@ for (ct in names(filtered_counts_list)) {
   # Input data
   counts_list <- filtered_counts_list    # genes x samples
   
-  bio_covs <- c("smoking_status_combined", "scaled_age", "sex", "scaled_BMI")
+  bio_covs <- c("smoking_status_combined", "scaled_age", "sex", "scaled_bmi")
   pc_prefix <- "PC"      # columns in pc_scores_df
   
   counts <- counts_list[[ct]]
