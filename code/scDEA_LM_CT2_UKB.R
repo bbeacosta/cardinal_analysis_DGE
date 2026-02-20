@@ -207,7 +207,6 @@ for (cf in counts_files) {
   filtered_counts_list[[celltype]] <- counts_filt
 }
 
-
 # After loop: list of filtered counts per cell type
 names(filtered_counts_list)
 sapply(filtered_counts_list, ncol)
@@ -248,21 +247,29 @@ phenotypes <- phenotypes[!is.na(phenotypes$eid), ]
 unique(master_table_F3$ancestry)
 
 master_table_F3_donorL <- master_table_F3 %>%
-  select(
+  dplyr::select(
     eid,
-    donor_uid_tpd_norm,
+    donor_uid_tpd,
     tranche_id,
     pool_id,
     sex,
     age,
     bmi,
     smoking_status_combined, 
-    smoking_status_number
+    smoking_status_numeric
   ) %>%
   distinct()
 
 any(duplicated(master_table_F3_donorL$eid)) # should return FALSE
 
+master_table_F3_donorL <- master_table_F3_donorL %>%
+  dplyr::mutate(
+    donor_uid_tpd_norm = donor_uid_tpd %>%
+      str_replace_all("\r", "") %>%   # just in case there are hidden CR chars
+      str_trim() %>%
+      str_replace_all("__", "-") %>%  # handle any __ cases too
+      str_replace_all("--", "-")      # convert -- to single dash
+  )
 
 
 

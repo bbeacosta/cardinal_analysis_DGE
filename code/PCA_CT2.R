@@ -1,4 +1,10 @@
 # ################## Assess covariate relevance for linear mixed model #######################
+install.packages("edgeR")
+install.packages("ggplot2")
+install.packages("pheatmap")
+install.packages("reshape2")
+
+# Load libraries
 library(edgeR)
 library(ggplot2)
 library(pheatmap)
@@ -54,7 +60,34 @@ pval_list <- list()
 pc_var_explained <- list()
 
 
+# Processed mastertable
+master_table_F3_donorL <- master_table_F3 %>%
+  dplyr::select(
+    eid,
+    donor_uid_tpd,
+    tranche_id,
+    pool_id,
+    sex,
+    age,
+    bmi,
+    smoking_status_combined, 
+    smoking_status_numeric
+  ) %>%
+  distinct()
 
+any(duplicated(master_table_F3_donorL$eid)) # should return FALSE
+
+# Add column matching colnames of filteredcountslist
+master_table_F3_donorL <- master_table_F3_donorL %>%
+  dplyr::mutate(
+    donor_uid_tpd_norm = donor_uid_tpd %>%
+      str_replace_all("\r", "") %>%   # just in case there are hidden CR chars
+      str_trim() %>%
+      str_replace_all("__", "-") %>%  # handle any __ cases too
+      str_replace_all("--", "-")      # convert -- to single dash
+  )
+
+ct <- "B_exhausted"
 # ---- Main loop over cell types ----
 for(ct in names(filtered_counts_list)){
   message("Processing cell type: ", ct)
@@ -67,13 +100,13 @@ for(ct in names(filtered_counts_list)){
   }
   
   # Align metadata
-  meta <- master_table_F3_donorL[match(colnames(counts), master_table_F3donorL$eid), ]
-  missing_meta_idx <- which(is.na(meta$eid))
+  meta <- master_table_F3_donorL[match(colnames(counts), master_table_F3_donorL$donor_uid_tpd_norm), ]
+  missing_meta_idx <- which(is.na(meta$donor_uid_tpd_norm))
   if(length(missing_meta_idx) > 0){
     message("  -> dropping ", length(missing_meta_idx), " samples with missing metadata")
     keep_cols <- setdiff(colnames(counts), colnames(counts)[missing_meta_idx])
     counts <- counts[, keep_cols, drop = FALSE]
-    meta <- master_table_F3_donorL[match(colnames(counts), master_table_F3_donorL$eid), ]
+    meta <- master_table_F3_donorL[match(colnames(counts), master_table_F3_donorL$donor_uid_tpd_norm), ]
   }
   if(ncol(counts) < 2){
     message("  -> not enough samples after metadata filtering. Skipping ", ct)
@@ -110,6 +143,9 @@ for(ct in names(filtered_counts_list)){
   
   # Create celltype-specific directory
   ct_dir <- file.path(pca_dir, ct)
+  
+  # Create directory if it doesn't exist
+  dir.create(ct_dir, recursive = TRUE, showWarnings = FALSE)
   
   # Save RDS file into that directory
   saveRDS(pca_list, file = file.path(pca_dir, "pca_list.rds"))
@@ -155,9 +191,9 @@ for(ct in names(filtered_counts_list)){
   
   # ---- PCA scatter plots colored by covariates ----
   scores <- as.data.frame(pca$x[, pcs_to_use, drop = FALSE])
-  scores$unique_id <- rownames(scores)
-  scores <- merge(scores, meta, by = "unique_id", sort = FALSE)
-  scores <- scores[match(rownames(pca$x), scores$unique_id), ]
+  scores$donor_uid_tpd_norm <- rownames(scores)
+  scores <- merge(scores, meta, by = "donor_uid_tpd_norm", sort = FALSE)
+  scores <- scores[match(rownames(pca$x), scores$donor_uid_tpd_norm), ]
   
   # Scatter plot PC1-2
   pdf(file.path(ct_dir, paste0(ct, "_PC1_PC2_by_covariates.pdf")), width=6, height=5)
@@ -318,7 +354,7 @@ counts <- filtered_counts_list2[[example_ct]]
 meta <- master_table_F3[match(colnames(counts), master_table_F3$unique_id), ]
 
 # Keep only relevant covariates
-covariate_names <- c("age_at_recruitment_first", "sex", "ancestry", "BMI", "state")
+covariate_names <- c("age", "sex", "smoking_status_combined", "bmi", "state")
 covariate_names <- covariate_names[covariate_names %in% colnames(meta)]
 force_categorical <- c("sex")
 
