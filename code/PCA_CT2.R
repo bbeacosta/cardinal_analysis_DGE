@@ -350,8 +350,8 @@ message(" Saved heatmap: Max_R2_covariates_heatmap_allCovariates.pdf")
 # Choose one example cell type (or loop through all)
 example_ct <- "T_CD8_naive"   # change to a cell type in your list
 
-counts <- filtered_counts_list2[[example_ct]]
-meta <- master_table_F3[match(colnames(counts), master_table_F3$unique_id), ]
+counts <- filtered_counts_list[[example_ct]]
+meta <- master_table_F3_donorL[match(colnames(counts), master_table_F3_donorL$donor_uid_tpd_norm), ]
 
 # Keep only relevant covariates
 covariate_names <- c("age", "sex", "smoking_status_combined", "bmi", "state")
