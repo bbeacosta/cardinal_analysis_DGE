@@ -693,21 +693,53 @@ for (ct in names(filtered_counts_list)) {
   library(ggplot2)
   
   for (bio in bio_covs) {
-    # Find coefficients corresponding to that covariate
-    # First check coefficients names
-    colnames(fit_full$coefficients)
-    print(bio)
-    # Map bio_covs to coefficient names
+    
+    # --- check coefficient names
     coef_names <- colnames(fit_full$coefficients)
+    print(bio)
     
-    #coef_to_test <- get_coef_name(bio, colnames(fit_full$coefficients))
-    coef_to_test <- colnames(fit_full$coefficients)[grep(bio,colnames(fit_full$coefficients))]
+    # --- find coefficients for this covariate
+    # use ^ so "sex" doesn't match "sexfake" etc.
+    coef_to_test <- coef_names[grep(paste0("^", bio), coef_names)]
     
-    # Generate topTable  
-    tt <- topTable(fit_full, coef = coef_to_test, number = Inf, sort.by = "P") # or sort by adj.P.Val?
-    tt_summary <- summary(tt$logFC)
+    if (length(coef_to_test) == 0) {
+      message("No coefficients found for: ", bio, " -- skipping")
+      next
+    }
     
-    saveRDS(tt, file.path(data_dir, paste0(ct, "_", bio, "_topTable.rds")))
+    # --- choose correct topTable settings
+    # 1 coef -> t-test -> can sort by P
+    # >1 coef -> overall F-test -> sort.by must be F or none
+    if (length(coef_to_test) == 1) {
+      tt <- topTable(fit_full, coef = coef_to_test, number = Inf, sort.by = "P")
+      tt_summary <- summary(tt$logFC)
+      
+      saveRDS(tt, file.path(data_dir, paste0(ct, "_", bio, "_topTable.rds")))
+      print(tt_summary)
+      
+    } else {
+      # overall test for the factor (e.g. smoking has Current + Previous)
+      tt <- topTable(fit_full, coef = coef_to_test, number = Inf, sort.by = "F")
+      
+      # F-test output does not always have logFC in the same way; so summarize P.Value if logFC absent
+      if ("logFC" %in% colnames(tt)) {
+        tt_summary <- summary(tt$logFC)
+        print(tt_summary)
+      } else if ("P.Value" %in% colnames(tt)) {
+        message("Multiple coefficients -> F-test. Summary of P.Value:")
+        print(summary(tt$P.Value))
+      }
+      
+      saveRDS(tt, file.path(data_dir, paste0(ct, "_", bio, "_topTable_Ftest.rds")))
+      
+      # OPTIONAL (comment out if you don’t want per-level results):
+      # also save each level separately as a standard t-test
+      for (one_coef in coef_to_test) {
+        tt_one <- topTable(fit_full, coef = one_coef, number = Inf, sort.by = "P")
+        saveRDS(tt_one, file.path(data_dir, paste0(ct, "_", one_coef, "_topTable.rds")))
+      }
+    }
+  }
     
     ################################################# PLOTS #############################################
     ######################################################################################################
