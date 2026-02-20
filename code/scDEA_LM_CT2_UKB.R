@@ -391,7 +391,7 @@ for (ct in names(filtered_counts_list)) {
   # Input data
   counts_list <- filtered_counts_list    # genes x samples
   
-  bio_covs <- c("ancestry", "scaled_age", "sex", "scaled_BMI")
+  bio_covs <- c("smoking_status_combined", "scaled_age", "sex", "scaled_BMI")
   pc_prefix <- "PC"      # columns in pc_scores_df
   
   out_dir <- "DGE_results_LM"
@@ -403,7 +403,7 @@ for (ct in names(filtered_counts_list)) {
     next
   }
   # Remove NAs from $pool_id column in mastertable
-  meta_all <- master_table_F3 [!is.na(master_table_F3$pool_id), ]
+  meta_all <- master_table_F3_donorL [!is.na(master_table_F3_donorL$pool_id), ]
   
   # Combine pool_id and donor_id into a single column with an underscore
   meta_all$unique_id <- paste(meta_all$pool_id, meta_all$donor_id, sep = "_")
@@ -419,18 +419,23 @@ for (ct in names(filtered_counts_list)) {
   
   # Make ancestry and sex as factors so that they are treated by limma as binary variables and not continuous variables
   meta_sub$sex <- factor(meta_sub$sex, levels = c(1, 2), labels = c("F", "M"))
-  meta_sub$ancestry<- factor(meta_sub$ancestry)
+  meta_sub$smoking_status_combined <- factor(meta_sub$smoking_status_combined)
   
   # Optional but recommended: set biologically meaningful reference
   # adjust levels as appropriate for your encoding
   levels(meta_sub$sex)
   meta_sub$sex <- relevel(meta_sub$sex, ref = "M")
   
+  # Optional but recommended: set biologically meaningful reference
+  # adjust levels as appropriate for your encoding
+  levels(meta_sub$smoking_status_combined)
+  meta_sub$smoking_status_combined <- relevel(meta_sub$smoking_status_combined, ref = "never")
+  
   
   # Scale continuous variables so that they all have mean = 0 and sd = 1, to improve model stability and make effect sizes comparable
   # When covariates have different numeric scales, scaling makes all covariates comparable in scale, helping model algorithm converge faster and more reliably
-  meta_sub$scaled_age <- as.numeric(scale(meta_sub$age_at_recruitment_first))
-  meta_sub$scaled_BMI <- as.numeric(scale(meta_sub$BMI))
+  meta_sub$scaled_age <- as.numeric(scale(meta_sub$age))
+  meta_sub$scaled_bmi <- as.numeric(scale(meta_sub$bmi))
   
   
   # ----- Attach PCs as technical covariates -----
@@ -529,7 +534,7 @@ for (ct in names(filtered_counts_list)) {
   # 1. Build design (do NOT filter columns)
   design_full <- model.matrix(
     ~ scaled_PC1 + scaled_PC2 + scaled_PC3 + scaled_PC4 +
-      ancestry + sex + scaled_age + scaled_BMI,
+      smoking_status_combined + sex + scaled_age + scaled_bmi,
     data = meta_sub
   )
   
@@ -569,21 +574,21 @@ for (ct in names(filtered_counts_list)) {
   }
   
   # 1) Check scaled_BMI existence and variability
-  if ("scaled_BMI" %in% colnames(design_full)) {
-    bmi_col <- get_col_safe(design_full, "scaled_BMI")
+  if ("scaled_bmi" %in% colnames(design_full)) {
+    bmi_col <- get_col_safe(design_full, "scaled_bmi")
     # convert to vector for unique() check
     bmi_vec <- as.vector(bmi_col)
     n_non_na_unique <- length(unique(bmi_vec[!is.na(bmi_vec)]))
     if (n_non_na_unique <= 1) {
-      message(" - scaled_BMI has <=1 unique non-NA value (", n_non_na_unique, "). Removing from design.")
+      message(" - scaled_bmi has <=1 unique non-NA value (", n_non_na_unique, "). Removing from design.")
       # remove column
-      keep_cols <- setdiff(colnames(design_full), "scaled_BMI")
+      keep_cols <- setdiff(colnames(design_full), "scaled_bmi")
       design_full <- design_full[, keep_cols, drop = FALSE]
     } else {
-      message(" - scaled_BMI retained (", n_non_na_unique, " unique non-NA values).")
+      message(" - scaled_bmi retained (", n_non_na_unique, " unique non-NA values).")
     }
   } else {
-    message(" - scaled_BMI not present in design.")
+    message(" - scaled_bmi not present in design.")
   }
   
   # 2) Remove any other constant / all-NA columns (columns with <=1 unique non-NA value)
@@ -659,8 +664,8 @@ for (ct in names(filtered_counts_list)) {
   
   # Test coefficients
   topTable(fit_full, coef = "sexF")
-  topTable(fit_full, coef = "ancestryPakistani")
-  topTable(fit_full, coef = "scaled_BMI")
+  topTable(fit_full, coef = "smoking_status_combinedNever") # Adjust with relevant level/coefficient
+  topTable(fit_full, coef = "scaled_bmi")
   topTable(fit_full, coef = "scaled_age")
   
   saveRDS(fit_full, file.path(data_dir, paste0(ct, "_fit_full.rds")))
