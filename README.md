@@ -18,18 +18,17 @@ This project is designed to run inside the UK Biobank RAP environment.
 
 ## Project Structure
 
-cardinal_analysis_DGE/
-├── code/
-│ ├── scDEA_LM_CT2_UKB.R # Main DGE script for UKB cohort to analyse pseudobulks at celltype level 2 granularity
-│ ├── PCA_CT2.R # PCA script for data at celltype level 2 granularity
-│ ├── scDEA_LM_CT2_G&H.R # Main DGE script for G&H cohort to analyse pseudobulks at celltype level 2 granularity
-│ ├── scDEA_LM_CT3_UKB.R # Main DGE script for UKB cohort to analyse pseudobulks at celltype level 3 granularity
-│ ├── PCA_CT3.R # PCA script for data at celltype level 3 granularity
-│ ├── scDEA_LM_CT3_G&H.R # Main DGE script for G&H cohort to analyse pseudobulks at celltype level 3 granularity
-│ ├── scDEA_LMM_CT3_G&H.R # Old DGE script to analyse pseudobulks at celltype level 2 granularity using a Linear Mixed Model
-│
-├── renv.lock # Reproducible R environment snapshot
-├── README.md
+cardinal_analysis_DGE/code/
+- scDEA_LM_CT2_UKB.R # Main DGE script for UKB cohort to analyse pseudobulks at celltype level 2 granularity
+- PCA_CT2.R # PCA script for data at celltype level 2 granularity
+- scDEA_LM_CT2_G&H.R # Main DGE script for G&H cohort to analyse pseudobulks at celltype level 2 granularity
+- scDEA_LM_CT3_UKB.R # Main DGE script for UKB cohort to analyse pseudobulks at celltype level 3 granularity
+- PCA_CT3.R # PCA script for data at celltype level 3 granularity
+- scDEA_LM_CT3_G&H.R # Main DGE script for G&H cohort to analyse pseudobulks at celltype level 3 granularity
+- scDEA_LMM_CT3_G&H.R # Old DGE script to analyse pseudobulks at celltype level 2 granularity using a Linear Mixed Model
+
+- renv.lock # Reproducible R environment snapshot
+- README.md
 
 ---
 
