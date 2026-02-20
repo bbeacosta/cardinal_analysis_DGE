@@ -397,24 +397,24 @@ for (ct in names(filtered_counts_list)) {
   pc_prefix <- "PC"      # columns in pc_scores_df
   
   counts <- counts_list[[ct]]
-  if (is.null(counts) || !is.matrix(counts) || ncol(counts) < 4) {
+  if (is.null(counts) || ncol(counts) < 4) { # !is.matrix(counts) || - removed bcs made counts invalid
     message("Skipping ", ct, ": invalid counts or too few samples.")
     next
   }
   # Remove NAs from $pool_id column in mastertable
-  meta_all <- master_table_F3_donorL [!is.na(master_table_F3_donorL$pool_id), ]
+  meta_all <- master_table_F3_donorL[!is.na(master_table_F3_donorL$pool_id), ]
   
-  # Combine pool_id and donor_id into a single column with an underscore
-  meta_all$unique_id <- paste(meta_all$pool_id, meta_all$donor_id, sep = "_")
-  
-  # Check the first few to confirm
-  head(meta_all$unique_id)
+  # # Combine pool_id and donor_id into a single column with an underscore
+  # meta_all$unique_id <- paste(meta_all$pool_id, meta_all$donor_id, sep = "_")
+  # 
+  # # Check the first few to confirm
+  # head(meta_all$unique_id)
   
   # Align metadata
-  shared_ids <- intersect(colnames(counts), meta_all$unique_id)
+  shared_ids <- intersect(colnames(counts), meta_all$donor_uid_tpd_norm)
   counts <- counts[, shared_ids, drop = FALSE]
-  meta_sub <- meta_all[match(shared_ids, meta_all$unique_id), , drop = FALSE]
-  stopifnot(all(colnames(counts) == meta_sub$unique_id))
+  meta_sub <- meta_all[match(shared_ids, meta_all$donor_uid_tpd_norm), , drop = FALSE]
+  stopifnot(all(colnames(counts) == meta_sub$donor_uid_tpd_norm))
   
   # Make ancestry and sex as factors so that they are treated by limma as binary variables and not continuous variables
   meta_sub$sex <- factor(meta_sub$sex, levels = c(1, 2), labels = c("F", "M"))
@@ -428,7 +428,7 @@ for (ct in names(filtered_counts_list)) {
   # Optional but recommended: set biologically meaningful reference
   # adjust levels as appropriate for your encoding
   levels(meta_sub$smoking_status_combined)
-  meta_sub$smoking_status_combined <- relevel(meta_sub$smoking_status_combined, ref = "never")
+  meta_sub$smoking_status_combined <- relevel(meta_sub$smoking_status_combined, ref = "Never")
   
   
   # Scale continuous variables so that they all have mean = 0 and sd = 1, to improve model stability and make effect sizes comparable
