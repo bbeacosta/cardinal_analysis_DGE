@@ -237,7 +237,9 @@ saveRDS(filtered_counts_list, file = "/home/rstudio-server/filtered_counts_list.
 #   left_join(obs_id_map, by = c("CARDINAL_ID_sample1" = "vacutainer_id"))
 
 # Filtered counts list
-readRDS(filtered_counts_list, file = "/home/rstudio-server/filtered_counts_list.rds")
+# readRDS(filtered_counts_list, file = "/home/rstudio-server/filtered_counts_list.rds")
+
+filtered_counts_list <- readRDS(file = "/home/rstudio-server/filtered_counts_list.rds")
 
 # Remove NAs from $unique_id column
 phenotypes <- phenotypes[!is.na(phenotypes$eid), ]
