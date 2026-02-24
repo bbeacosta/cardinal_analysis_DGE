@@ -4,23 +4,53 @@
 ##################################### LINEAR MIXED MODEL FOR DGE ###################################
 
 # Load necessary libraries
-.libPaths(c("/usr/lib/R/library"))
+.libPaths()
+
+# Install packages
+# Ensure BiocManager is available
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+  install.packages("BiocManager")
+}
+
+# Full package list
+pkgs <- c(
+  "edgeR",
+  "limma",
+  "tidyr",
+  "dplyr",
+  "ggplot2",
+  "EnhancedVolcano",
+  "optparse",
+  "stringr",
+  "tibble",
+  "pheatmap",
+  "EnsDb.Hsapiens.v86",
+  "AnnotationDbi"
+)
+
+# Install everything (BiocManager handles both CRAN + Bioconductor)
+BiocManager::install(pkgs, ask = FALSE, update = FALSE)
+
+# Load libraries
 library(edgeR)
 library(limma)
-library(variancePartition)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(EnhancedVolcano)
 library(optparse)
-library(dreamlet)
 library(stringr)
 library(tibble)
 library(pheatmap)
-library(lme4)
-library(BiocParallel)
-register(MulticoreParam(workers = 8)) # parallelize to make dream work faster
+# library(lme4) # for mixed model only
+library(EnsDb.Hsapiens.v86)
+library(AnnotationDbi)
 
+
+
+# Define base directory
+base_dir <- "/home/rstudio-server"
+dir.create(base_dir, showWarnings = FALSE)
 # Load all necessary files for analyses
 # load metadatafiles
 # traits_macrocat <- read.csv("/genesandhealth/red/DanielaZanotti/data/disease/name_disease.csv", header = TRUE) # extended disease name for plotting and disease apparatus macrocategories
