@@ -666,11 +666,32 @@ for (ct in names(filtered_counts_list)) {
   fit_full <- lmFit(vobj, design_full)
   fit_full <- eBayes(fit_full)
   
-  # Test coefficients
-  topTable(fit_full, coef = "sexFemale")
-  topTable(fit_full, coef = "smoking_status_combinedCurrent") # Adjust with relevant level/coefficient
-  topTable(fit_full, coef = "scaled_bmi")
-  topTable(fit_full, coef = "scaled_age")
+  coef_names <- colnames(fit_full$coefficients)
+  
+  # Test coefficients safely
+  if ("sexFemale" %in% coef_names) {
+    topTable(fit_full, coef = "sexFemale")
+  } else {
+    message("Skipping sexFemale: not in model for ", ct)
+  }
+  
+  if ("smoking_status_combinedCurrent" %in% coef_names) {
+    topTable(fit_full, coef = "smoking_status_combinedCurrent")
+  } else {
+    message("Skipping smoking_status_combinedCurrent: not in model for ", ct)
+  }
+  
+  if ("scaled_bmi" %in% coef_names) {
+    topTable(fit_full, coef = "scaled_bmi")
+  } else {
+    message("Skipping scaled_bmi: not in model for ", ct)
+  }
+  
+  if ("scaled_age" %in% coef_names) {
+    topTable(fit_full, coef = "scaled_age")
+  } else {
+    message("Skipping scaled_age: not in model for ", ct)
+  }
   
   saveRDS(fit_full, file.path(data_dir, paste0(ct, "_fit_full.rds")))
   
