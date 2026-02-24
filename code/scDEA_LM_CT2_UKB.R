@@ -241,6 +241,8 @@ saveRDS(filtered_counts_list, file = "/home/rstudio-server/filtered_counts_list.
 
 filtered_counts_list <- readRDS(file = "/home/rstudio-server/filtered_counts_list.rds")
 
+pca_list <- readRDS(file = "/home/rstudio-server/pca_list.rds")
+
 # Remove NAs from $unique_id column
 phenotypes <- phenotypes[!is.na(phenotypes$eid), ]
 
@@ -367,6 +369,7 @@ qc_metrics <- list()
 # 
 
  # ct <- "B_naive"   
+ct <- "HSC_MPP"
 
 for (ct in names(filtered_counts_list)) {
   message("\n===== CELL TYPE: ", ct, " =====")
