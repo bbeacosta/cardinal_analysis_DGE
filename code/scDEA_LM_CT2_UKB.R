@@ -369,7 +369,7 @@ qc_metrics <- list()
 # 
 
  # ct <- "B_naive"   
-ct <- "HSC_MPP"
+# ct <- "HSC_MPP"
 
 for (ct in names(filtered_counts_list)) {
   message("\n===== CELL TYPE: ", ct, " =====")
