@@ -1386,7 +1386,7 @@ library(tibble)
 #----------------------------------------------------------
 # 1. Load all CSVs and compute DEG proportions
 #----------------------------------------------------------
-main_dir <- "DGE_results_LM_csv_annotated"
+main_dir <- "results_DGE_csv_annotated"
 
 ct_dirs <- list.dirs(main_dir, recursive = FALSE, full.names = TRUE)
 
