@@ -1439,13 +1439,13 @@ deg_df <- bind_rows(deg_list)
 #----------------------------------------------------------
 # 3. Order columns: first bio covs, then diseases
 #----------------------------------------------------------
-bio_covs <- c("scaled_age", "scaled_BMI", "sex", "ancestry")
+bio_covs <- c("scaled_age", "scaled_bmi", "sex", "smoking_status_combined")
 
 deg_df <- deg_df %>%
   mutate(trait_type = ifelse(trait %in% bio_covs, "bio_cov", "disease")) %>%
   arrange(trait_type, trait)
 
-write.csv(deg_df, file = "/home/ivm/DGE_results_LM_csv_annotated/degs_summary_table_DiseasexCelltype.csv", row.names = FALSE)
+write.csv(deg_df, file = "/home/rstudio-server/results_DGE_csv_annotated/degs_summary_table_DiseasexCelltype.csv", row.names = FALSE)
 
 #----------------------------------------------------------
 # 4. Heatmap (pheatmap)
@@ -1465,7 +1465,7 @@ deg_wide_prop <- deg_df %>%
 # Now check for duplicates
 anyDuplicated(deg_wide_prop$celltype)   # should be 0
 
-write.csv(deg_wide_prop, file = "/home/ivm/DGE_results_LM_csv_annotated/degs_wide_prop_DiseasexCelltype.csv", row.names = FALSE)
+write.csv(deg_wide_prop, file = "/home/rstudio-server/results_DGE_csv_annotated/degs_wide_prop_DiseasexCelltype.csv", row.names = FALSE)
 
 # Convert to matrix
 deg_mat_prop <- deg_wide_prop %>%
@@ -1483,7 +1483,7 @@ gap_pos <- sum(colnames(deg_mat_prop) %in% bio_covs)
 
 
 # Save
-pdf("/home/ivm/DGE_results_LM_csv_annotated/heatmap_deg_proportion_all.pdf", width=16, height=7)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_proportion_all.pdf", width=16, height=7)
 pheatmap(
   mat = deg_mat_prop[,-(52:53)], # to remove the first 4 biocovs whose much higher values that were skewing all the palette
   cluster_rows = FALSE,
@@ -1503,7 +1503,7 @@ pheatmap(
 dev.off()
 
 # Save
-pdf("/home/ivm/DGE_results_LM_csv_annotated/heatmap_deg_proportion_diseasesOnly.pdf", width=17, height=7)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_proportion_diseasesOnly.pdf", width=17, height=7)
 pheatmap(
   mat = deg_mat_prop[,-c(1:4, 52:53)], # to remove the first 4 biocovs that were skewing all the palette
   cluster_rows = FALSE,
@@ -1523,7 +1523,7 @@ pheatmap(
 dev.off()
 
 # Save
-pdf("/home/ivm/DGE_results_LM_csv_annotated/heatmap_deg_proportion_biocovsOnly.pdf", width=14, height=7)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_proportion_biocovsOnly.pdf", width=14, height=7)
 pheatmap(
   mat = deg_mat_prop[, 1:4], # to remove the first 4 biocovs that were skewing all the palette
   cluster_rows = FALSE,
@@ -1571,7 +1571,7 @@ deg_mat_abs <- deg_mat_abs[rownames(deg_mat_abs) != "HSC_MPP", ]
 
 # Now plot absolute number of DEGs
 # Save
-pdf("/home/ivm/DGE_results_LM_csv_annotated/heatmap_deg_absNumber_all.pdf", width=17, height=7)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_absNumber_all.pdf", width=17, height=7)
 pheatmap(
   mat = deg_mat_abs[,-(52:53)], # to remove the first 4 biocovs whose much higher values that were skewing all the palette
   cluster_rows = FALSE,
@@ -1591,7 +1591,7 @@ pheatmap(
 dev.off()
 
 # Save
-pdf("/home/ivm/DGE_results_LM_csv_annotated/heatmap_deg_absNumber_diseasesOnly.pdf", width=14, height=7)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_absNumber_diseasesOnly.pdf", width=14, height=7)
 pheatmap(
   mat = deg_mat_abs[,-c(1:4, 52:53)], # to remove the first 4 biocovs that were skewing all the palette
   cluster_rows = FALSE,
@@ -1611,7 +1611,7 @@ pheatmap(
 dev.off()
 
 # Save
-pdf("/home/ivm/DGE_results_LM_csv_annotated/heatmap_deg_absNumber_biocovsOnly.pdf", width=14, height=7)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_absNumber_biocovsOnly.pdf", width=14, height=7)
 pheatmap(
   mat = deg_mat_abs[, 1:4], # to remove the first 4 biocovs that were skewing all the palette
   cluster_rows = FALSE,
