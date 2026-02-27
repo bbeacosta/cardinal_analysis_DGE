@@ -1175,38 +1175,38 @@ for (ct in names(filtered_counts_list)) {
 } # close celltype loop
 
 # Bind rows of case/control counts per disease
-case_counts_df <- bind_rows(case_counts, .id="celltype")
-
-# Validation case/counts matrix
-case_counts_df %>%
-  group_by(disease) %>%
-  summarise(total_cases = sum(cases)) %>%
-  arrange(total_cases)
-
-case_counts_df %>%
-  group_by(disease) %>%
-  summarise(unique_cases = n_distinct(cases))
-
-
-# Bind rows for computed variance explained across cell types
-variance_df <- do.call(rbind, lapply(names(variance_explained_list), function(ct) {
-  data.frame(
-    celltype = ct,
-    term = names(variance_explained_list[[ct]]),
-    var_exp = unlist(variance_explained_list[[ct]])
-  )
-}))
-
-# Bind rows for qc metrics
-qc_df <- bind_rows(qc_metrics)
-
-# Save all outputs
-write.csv(variance_df, "/home/ivm/DGE_results_LM_publication/summary_variance_explained.csv", row.names=FALSE)
-# write.csv(genes_tested_df, "/home/ivm/DGE_results_LM/summary_gene_counts.csv", row.names=FALSE)
-write.csv(case_counts_df, "/home/ivm/DGE_results_LM_publication/summary_case_counts.csv", row.names=FALSE)
-write.csv(qc_df, "/home/ivm/DGE_results_LM_publication/summary_qc_metrics.csv", row.names=FALSE)
+# case_counts_df <- bind_rows(case_counts, .id="celltype")
+# 
+# # Validation case/counts matrix
+# case_counts_df %>%
+#   group_by(disease) %>%
+#   summarise(total_cases = sum(cases)) %>%
+#   arrange(total_cases)
+# 
+# case_counts_df %>%
+#   group_by(disease) %>%
+#   summarise(unique_cases = n_distinct(cases))
 
 
+# # Bind rows for computed variance explained across cell types
+# variance_df <- do.call(rbind, lapply(names(variance_explained_list), function(ct) {
+#   data.frame(
+#     celltype = ct,
+#     term = names(variance_explained_list[[ct]]),
+#     var_exp = unlist(variance_explained_list[[ct]])
+#   )
+# }))
+# 
+# # Bind rows for qc metrics
+# qc_df <- bind_rows(qc_metrics)
+# 
+# # Save all outputs
+# write.csv(variance_df, "/home/ivm/DGE_results_LM_publication/summary_variance_explained.csv", row.names=FALSE)
+# # write.csv(genes_tested_df, "/home/ivm/DGE_results_LM/summary_gene_counts.csv", row.names=FALSE)
+# write.csv(case_counts_df, "/home/ivm/DGE_results_LM_publication/summary_case_counts.csv", row.names=FALSE)
+# write.csv(qc_df, "/home/ivm/DGE_results_LM_publication/summary_qc_metrics.csv", row.names=FALSE)
+# 
+# 
 
 
 
@@ -1220,10 +1220,10 @@ library(fs)     # for path handling (comes with RStudio Server)
 library(stringr)
 
 # Input root directory
-input_root <- "/home/ivm/DGE_results_LM_publication/"
+input_root <- "/home/rstudio-server/results_DGE/"
 
 # Output root directory
-output_root <- "/home/ivm/DGE_results_LM_csv/"
+output_root <- "/home/rstudio-server/results_DGE_csv/"
 
 # Create output root if not exists
 if (!dir.exists(output_root)) dir.create(output_root, recursive = TRUE)
@@ -1289,12 +1289,12 @@ library(dplyr)
 library(stringr)
 
 # Upload one file to see structure
-B_naive <- read.csv2(file = "/home/ivm/DGE_results_LM_csv/B_naive/data/B_naive_ancestry_topTable.csv", header = TRUE, sep = ",")
-head(B_naive)
+# B_naive <- read.csv2(file = "/home/ivm/DGE_results_LM_csv/B_naive/data/B_naive_ancestry_topTable.csv", header = TRUE, sep = ",")
+# head(B_naive)
 
 # Directories
-input_root <- "DGE_results_LM_csv"
-output_root <- "DGE_results_LM_csv_annotated"
+input_root <- "results_DGE_csv"
+output_root <- "results_DGE_csv_annotated"
 
 if (!dir.exists(output_root)) dir.create(output_root, recursive = TRUE)
 
@@ -1319,7 +1319,7 @@ csv_files <- csv_files[!basename(csv_files) %in% exclude_files]
 edb <- EnsDb.Hsapiens.v86
 gene_map <- genes(edb, return.type = "DataFrame") %>%
   as.data.frame() %>%
-  select(gene_id, gene_name) %>%
+  dplyr::select(gene_id, gene_name) %>%
   distinct()
 
 names(gene_map) <- c("ensembl_id", "gene_name")
