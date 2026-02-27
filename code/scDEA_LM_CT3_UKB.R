@@ -85,8 +85,8 @@ dir_bangpaki <- "/home/rstudio-server/celltype_3/ukb-qced-cells/"
 all_files <- list.files(dir_bangpaki, full.names = FALSE)
 celltypes <- unique(sub("\\..*", "", all_files))
 print(celltypes) 
-celltypes <- celltypes[-c(30, 31, 32, 33, 46, 47, 48, 49, 88, 89)]   # remove items that are not cell types by index
-print(celltypes) # 87 celltypes
+celltypes <- celltypes[-c(30, 31, 44, 45, 46, 85, 86)]   # remove items that are not cell types by index
+print(celltypes) # 79 celltypes
 
 # Set up ncell filter: at least 10 cells per donor per celltype (based on tables in: *ncells_x_donor.tsv)
 # List all counts files
@@ -108,7 +108,7 @@ results <- data.frame(
 )
 
 
-# cf <- "/genesandhealth/red/Beatrice_Costa/gh-qced-cells/B_memory_IGHMlow.count.agg_sum.tsv"
+cf <- "/home/rstudio-server/celltype_3/ukb-qced-cells/B_memory_IGHMlow.count.agg_sum.tsv"
 
 for(cf in counts_files){
   # ---- 1. Extract celltype name from filename
@@ -246,7 +246,7 @@ for(cf in counts_files){
       status = "kept"
     )
   )
-}
+} # end filtering loop
 
 results$prop_lost <-
   1 - results$donors_after_intersection / results$donors_ge_10
