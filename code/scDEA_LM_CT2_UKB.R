@@ -1697,6 +1697,13 @@ for(ct in celltypes_all){
   for(csv in csv_files){
     fname <- basename(csv)
     
+    # F-test tables don't have logFC cols, so skip those files for smoking status
+    # Skip F-test outputs (no single logFC)
+    if (grepl("_Ftest_", fname, ignore.case = TRUE) || grepl("topTable_Ftest", fname, ignore.case = TRUE)) {
+      message("Skipping F-test file (no logFC): ", fname)
+      next
+    }
+    
     print(fname)
     # Define trait
     ## Case 1: disease traits (unchanged)
@@ -1709,18 +1716,19 @@ for(ct in celltypes_all){
     } else {
       
       ## Case 2: biological covariates
-      ## extract trait by matching selected_traits
-      trait <- selected_traits[
+      ## match selected_traits when followed by "_" OR immediately followed by letters (factor levels)
+      trait_hits <- selected_traits[
         sapply(selected_traits, function(t)
-          grepl(paste0("_", t, "_"), fname))
+          grepl(paste0("_", t, "($|_|[A-Za-z])"), fname)
+        )
       ]
       
-      if (length(trait) == 0) {
+      if (length(trait_hits) == 0) {
         message("Skipping file (no matching trait): ", fname)
         next
       }
       
-      trait <- trait[1]  # safety
+      trait <- trait_hits[1]  # keep first match
     }
     
     
