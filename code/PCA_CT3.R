@@ -40,11 +40,11 @@ covariate_names <- covariate_names[covariate_names %in% colnames(master_table_F3
 
 ### Load necesary files
 # Load filtered counts list
-filtered_counts_list <- readRDS("/home/ivm/CT3_DGE_analysis/filtered_counts_list.rds")
+filtered_counts_list <- readRDS("/home/rstudio-server/filtered_counts_list.rds")
 # master table - donor level (each row is a donor, already aggregated)
-master_table_F3 <- read.table("/genesandhealth/red/DanielaZanotti/CARDINAL_db/v4/data/v4_master_table.tsv", header = TRUE, sep = "\t", check.names = FALSE)      # Master table contains: age, sex, ethnicity, date at PBMC collection
-str(master_table_F3)
-head(master_table_F3)
+# master_table_F3 <- read.table("/genesandhealth/red/DanielaZanotti/CARDINAL_db/v4/data/v4_master_table.tsv", header = TRUE, sep = "\t", check.names = FALSE)      # Master table contains: age, sex, ethnicity, date at PBMC collection
+# str(master_table_F3)
+# head(master_table_F3)
 
 
 # ---- Helper functions ----
@@ -92,7 +92,7 @@ for(ct in names(filtered_counts_list)){
   head(meta$donor_id_match)
   
   meta <- meta[match(colnames(counts), meta$donor_id_match), ]
-  missing_meta_idx <- which(is.na(meta$unique_id))
+  missing_meta_idx <- which(is.na(meta$donor_id_match))
   if(length(missing_meta_idx) > 0){
     message("  -> dropping ", length(missing_meta_idx), " samples with missing metadata")
     keep_cols <- setdiff(colnames(counts), colnames(counts)[missing_meta_idx])
@@ -126,7 +126,20 @@ for(ct in names(filtered_counts_list)){
   pc_var_explained[[ct]] <- var_exp
   
   # Save pca_list
-  saveRDS(pca_list, file = "/home/ivm/CT3_DGE_analysis/pca_list.rds")
+  # Define directory
+  pca_dir <- "/home/rstudio-server/PCA_CT3"
+  
+  # Create directory if it doesn't exist
+  dir.create(pca_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Create celltype-specific directory
+  ct_dir <- file.path(pca_dir, ct)
+  
+  # Create directory if it doesn't exist
+  dir.create(ct_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Save RDS file into that directory
+  saveRDS(pca_list, file = file.path(pca_dir, "pca_list.rds"))
   
   
   # ---- R² and p-value matrices ----
@@ -154,39 +167,74 @@ for(ct in names(filtered_counts_list)){
   sig_annot[pval_mat < 0.01] <- "**"
   sig_annot[pval_mat < 0.001] <- "***"
   
-  # pdf(file.path(out_plots_dir, paste0(ct, "_PC_covariates_R2_heatmap.pdf")), width=8, height=6)
-  # pheatmap(r2_mat,
-  #          cluster_rows = FALSE,
-  #          cluster_cols = FALSE,
-  #          display_numbers = sig_annot,
-  #          number_color = "black",
-  #          color = colorRampPalette(c("white","steelblue"))(50),
-  #          main = paste(ct, "PC ~ covariate R²"),
-  #          fontsize_number = 10,
-  #          angle_col = 0)
-  # dev.off()
+  pdf(file.path(ct_dir, paste0(ct, "_PC_covariates_R2_heatmap.pdf")), width=8, height=6)
+  pheatmap(r2_mat,
+           cluster_rows = FALSE,
+           cluster_cols = FALSE,
+           display_numbers = sig_annot,
+           number_color = "black",
+           color = colorRampPalette(c("white","steelblue"))(50),
+           main = paste(ct, "PC ~ covariate R²"),
+           fontsize_number = 10,
+           angle_col = 0)
+  dev.off()
   
-  # # ---- PCA scatter plots colored by covariates ----
-  # scores <- as.data.frame(pca$x[, pcs_to_use, drop = FALSE])
-  # scores$unique_id <- rownames(scores)
-  # scores <- merge(scores, meta, by = "unique_id", sort = FALSE)
-  # scores <- scores[match(rownames(pca$x), scores$unique_id), ]
-  # 
-  # pdf(file.path(out_plots_dir, paste0(ct, "_PC5_PC6_by_covariates.pdf")), width=6, height=5)
-  # for(covn in covariate_names){
-  #   covv <- scores[[covn]]
-  #   if(is.numeric(covv)){
-  #     p <- ggplot(scores, aes(PC5, PC6, color = covv)) +
-  #       geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
-  #       theme_minimal()
-  #   } else {
-  #     p <- ggplot(scores, aes(PC5, PC6, color = as.factor(covv))) +
-  #       geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
-  #       theme_minimal()
-  #   }
-  #   print(p)
-  # }
-  # dev.off()
+  # ---- PCA scatter plots colored by covariates ----
+  scores <- as.data.frame(pca$x[, pcs_to_use, drop = FALSE])
+  scores$donor_uid_tpd_norm <- rownames(scores)
+  scores <- merge(scores, meta, by = "donor_uid_tpd_norm", sort = FALSE)
+  scores <- scores[match(rownames(pca$x), scores$donor_uid_tpd_norm), ]
+  
+  # Scatter plot PC1-2
+  pdf(file.path(ct_dir, paste0(ct, "_PC1_PC2_by_covariates.pdf")), width=6, height=5)
+  for(covn in covariate_names){
+    covv <- scores[[covn]]
+    if(is.numeric(covv)){
+      p <- ggplot(scores, aes(PC1, PC2, color = covv)) +
+        geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
+        theme_minimal()
+    } else {
+      p <- ggplot(scores, aes(PC1, PC2, color = as.factor(covv))) +
+        geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
+        theme_minimal()
+    }
+    print(p)
+  }
+  dev.off()
+  
+  # Scatter plot PC3-4
+  pdf(file.path(ct_dir, paste0(ct, "_PC3_PC4_by_covariates.pdf")), width=6, height=5)
+  for(covn in covariate_names){
+    covv <- scores[[covn]]
+    if(is.numeric(covv)){
+      p <- ggplot(scores, aes(PC3, PC4, color = covv)) +
+        geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
+        theme_minimal()
+    } else {
+      p <- ggplot(scores, aes(PC3, PC4, color = as.factor(covv))) +
+        geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
+        theme_minimal()
+    }
+    print(p)
+  }
+  dev.off()
+  
+  # Scatter plot PC5-6
+  pdf(file.path(ct_dir, paste0(ct, "_PC5_PC6_by_covariates.pdf")), width=6, height=5)
+  for(covn in covariate_names){
+    covv <- scores[[covn]]
+    if(is.numeric(covv)){
+      p <- ggplot(scores, aes(PC5, PC6, color = covv)) +
+        geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
+        theme_minimal()
+    } else {
+      p <- ggplot(scores, aes(PC5, PC6, color = as.factor(covv))) +
+        geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
+        theme_minimal()
+    }
+    print(p)
+  }
+  dev.off()
   
   # ---- PCs exceeding R² threshold ----
   pcs_to_include <- which(colSums(r2_mat > r2_threshold, na.rm = TRUE) > 0)

@@ -281,12 +281,12 @@ filtered_counts_list <- Filter(function(x) ncol(x) > 0, filtered_counts_list)
 sapply(filtered_counts_list, ncol)
 
 # Save file for safe upload later
-saveRDS(filtered_counts_list, file = "/home/ivm/CT3_DGE_analysis/filtered_counts_list.rds")
+saveRDS(filtered_counts_list, file = "/home/rstudio-server/filtered_counts_list.rds")
 
 # ------------------------------------------------------------------------------
 
 #Load processed counts 
-filtered_counts_list <- readRDS("/home/ivm/CT3_DGE_analysis/filtered_counts_list.rds")
+filtered_counts_list <- readRDS("/home/rstudio-server/filtered_counts_list.rds")
 
 
 # load metadatafiles
