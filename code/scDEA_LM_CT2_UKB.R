@@ -1645,13 +1645,16 @@ library(EnhancedVolcano)
 print(filtered_diseases) # for info about available diseases analysed after filtering for minimum number of cases (n>=50)
 
 # Select traits for volcano plots - based on Giuditta's analyses
-selected_traits <- c("AB1_INTESTINAL_INFECTIONS", "D3_ANAEMIA_IRONDEF", "E4_HYTHY_AI_STRICT", "E4_OBESITY", "E4_HYPERCHOL", "E4_LIPOPROT", "H8_EXTERNAL", "H8_OTHEREAR", "I9_HYPTENS", 
-                     "I9_HYPTENSESS", "I9_IHD", "J10_ASTHMA_EXMORE", "J10_PNEUMONIA", "K11_CHOLELITH", "HYPOTHYROIDISM", "MDD", "T2D", "sex", "ancestry", "scaled_age", "scaled_BMI"
+selected_traits <- c("AB1_INTESTINAL_INFECTIONS", "D3_ANAEMIA_IRONDEF", "E4_HYTHY_AI_STRICT", "E4_OBESITY", 
+                     "E4_HYPERCHOL", "E4_LIPOPROT", "H8_EXTERNAL", "H8_OTHEREAR", "I9_HYPTENS", 
+                     "I9_HYPTENSESS", "I9_AF", "I9_ANGINA", "I9_CORATHER", "I9_IHD", "J10_ASTHMA_EXMORE", 
+                     "J10_PNEUMONIA", "K11_CHOLELITH", "K11_HERNIA", "HYPOTHYROIDISM", 
+                     "MDD", "T2D", "sex", "smoking_status_combined", "scaled_age", "scaled_bmi"
 ) 
 
 
 # Directory where annotated DEG CSVs are saved
-data_root <- "/home/ivm/DGE_results_LM_csv_annotated/" # adjust to your root folder
+data_root <- "/home/rstudio-server/results_DGE_csv_annotated/" # adjust to your root folder
 celltypes_all <- list.dirs(data_root, recursive = FALSE, full.names = FALSE)
 
 # # Select list of cell types of interest 
@@ -1853,7 +1856,7 @@ for(ct in celltypes_all){
 library(EnhancedVolcano)
 
 # Select traits for volcano plots
-selected_traits <- c("sex", "ancestry", "scaled_BMI", "scaled_age" ) 
+selected_traits <- c("sex", "smoking_status_combined", "scaled_bmi", "scaled_age" ) 
 
 
 # Directory where annotated DEG CSVs are saved
