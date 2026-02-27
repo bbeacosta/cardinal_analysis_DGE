@@ -29,11 +29,12 @@ selected_traits <- c("AB1_INTESTINAL_INFECTIONS", "D3_ANAEMIA_IRONDEF", "E4_HYTH
 ) 
 
 
+
 # Directory where annotated DEG CSVs are saved
-data_root_CT2 <- "/Users/beatrice.costa/Library/CloudStorage/OneDrive-Htechnopole/Human Technopole/Cardinal/DGE_results_LM_csv_annotated" # adjust to your root folder
+data_root_CT2 <- "/Users/beatrice.costa/Library/CloudStorage/OneDrive-Htechnopole/Human Technopole/Cardinal/UKB-RAP_results/results_DGE_csv_annotated_CT2" # adjust to your root folder
 data_root_CT3 <- "/Users/beatrice.costa/Library/CloudStorage/OneDrive-Htechnopole/Human Technopole/Cardinal/CT3_DGE_analysis_csv_annotated" # adjust to your root folder
 
-celltypes_all <- list.dirs(data_root_CT3, recursive = FALSE, full.names = FALSE)
+celltypes_all <- list.dirs(data_root_CT2, recursive = FALSE, full.names = FALSE)
 
 # # Select list of cell types of interest 
 # celltypes_of_interest <- c("B_memory_IGHMhigh", "T_CD4_CTL", "T_CD4_EM", "T_CD4_Treg", "T_MAIT")
@@ -45,7 +46,7 @@ celltypes_all <- list.dirs(data_root_CT3, recursive = FALSE, full.names = FALSE)
 for(ct in celltypes_all){
   print(ct)
   
-  ct_dir <- file.path(data_root_CT3, ct, "data")   # make sure folder is 'data' exactly
+  ct_dir <- file.path(data_root_CT2, ct, "data")   # make sure folder is 'data' exactly
   if(!dir.exists(ct_dir)) {
     message("Skipping, folder does not exist: ", ct_dir)
     next
@@ -57,8 +58,8 @@ for(ct in celltypes_all){
     next
   }
   
-  # plot_dir <- file.path(data_root_CT3, ct, "plots_FDR0.05_LogFC1_labelled")
-  plot_dir <- file.path(data_root_CT3, ct, "plots_FDR0.05_LogFC0.5_labelled")
+  plot_dir <- file.path(data_root_CT2, ct, "plots_FDR0.05_LogFC1_labelled")
+  # plot_dir <- file.path(data_root_CT2, ct, "plots_FDR0.05_LogFC0.5_labelled")
   dir.create(plot_dir, showWarnings = FALSE)
   
   # Subset list of csvs based on traits of interest
@@ -75,6 +76,13 @@ for(ct in celltypes_all){
   for(csv in csv_files){
     fname <- basename(csv)
     
+    # F-test tables don't have logFC cols, so skip those files for smoking status
+    # Skip F-test outputs (no single logFC)
+    if (grepl("_Ftest_", fname, ignore.case = TRUE) || grepl("topTable_Ftest", fname, ignore.case = TRUE)) {
+      message("Skipping F-test file (no logFC): ", fname)
+      next
+    }
+    
     print(fname)
     # Define trait
     ## Case 1: disease traits (unchanged)
@@ -87,18 +95,19 @@ for(ct in celltypes_all){
     } else {
       
       ## Case 2: biological covariates
-      ## extract trait by matching selected_traits
-      trait <- selected_traits[
+      ## match selected_traits when followed by "_" OR immediately followed by letters (factor levels)
+      trait_hits <- selected_traits[
         sapply(selected_traits, function(t)
-          grepl(paste0("_", t, "_"), fname))
+          grepl(paste0("_", t, "($|_|[A-Za-z])"), fname)
+        )
       ]
       
-      if (length(trait) == 0) {
+      if (length(trait_hits) == 0) {
         message("Skipping file (no matching trait): ", fname)
         next
       }
       
-      trait <- trait[1]  # safety
+      trait <- trait_hits[1]  # keep first match
     }
     
     
@@ -147,7 +156,7 @@ for(ct in celltypes_all){
     
     
     tt <- tt %>%
-      mutate(Label = adj.P.Val <= 0.05 | abs(logFC) >= 0.5) # Adjust LFC when needed
+      mutate(Label = adj.P.Val <= 0.05 | abs(logFC) >= 1) # Adjust LFC when needed
     
     
     if(!all(c("logFC", "P.Value", "adj.P.Val", "gene_name") %in% colnames(tt))) next
@@ -178,9 +187,9 @@ for(ct in celltypes_all){
     
     # Create argument for custom color dots
     keyvals <- ifelse(
-      tt$SigAdj & abs(tt$logFC) >= 0.5, "Adj.P.Val & Log2FC", # Adjust if LogFC threshold changes
+      tt$SigAdj & abs(tt$logFC) >= 1, "Adj.P.Val & Log2FC", # Adjust if LogFC threshold changes
       ifelse(tt$SigAdj, "Adj.P.Val",
-             ifelse(abs(tt$logFC) >= 0.5, "Log2FC", "NS")) # Adjust if LogFC threshold changes
+             ifelse(abs(tt$logFC) >= 1, "Log2FC", "NS")) # Adjust if LogFC threshold changes
     )
     
     keyvals <- factor(
@@ -211,7 +220,7 @@ for(ct in celltypes_all){
                     x = 'logFC',
                     y = 'P.Value',
                     pCutoff = 0.05,
-                    FCcutoff = 0.5, # adjust LFC cutoff when needed
+                    FCcutoff = 1, # adjust LFC cutoff when needed
                     selectLab = label_genes,
                     title = paste0("DGE by ", trait, " - ", ct),
                     subtitle = "Raw p-values (y), FDR-based significance",
