@@ -1,25 +1,40 @@
 
 ########## RE-RUN PCA AT CT3 GRANULARITY ###################
 ################## Assess covariate relevance for linear mixed model #######################
+install.packages("edgeR")
+install.packages("ggplot2")
+install.packages("pheatmap")
+install.packages("reshape2")
+
+# Load libraries
 library(edgeR)
 library(ggplot2)
 library(pheatmap)
 library(reshape2)
+
+# Load datafiles
+# master table - donor level (each row is a cell)
+master_table_F3 <- read.csv("/home/rstudio-server/F3_UKB_adata_obs_with_metadata.csv")      # Master table contains: age, sex, ethnicity, date at PBMC collection
+
+# Filtered counts list
+readRDS(filtered_counts_list, file = "/home/rstudio-server/filtered_counts_list.rds")
 
 # ---- User parameters ----
 nPC <- 15
 min_cpm_keep <- 1
 min_samples_keep <- 2
 r2_threshold <- 0.05
-out_plots_dir <- "/home/ivm/CT3_DGE_analysis/PCA_plots"
-dir.create(out_plots_dir, showWarnings = FALSE)
+
 
 # Specify covariates of interest
-skip_cols <- c("unique_id")
-covariate_names <- c("sex", "ancestry", "state",
-                     "age_at_recruitment", "BMI",
-                     "pool_id", "tranche_id",
-                     "age_at_recruitment_sq")
+# skip_cols <- c("unique_id")
+covariate_names <- c("sex", "smoking_status_combined", 
+                     "bmi", "age"
+                     # ,"pool_id", "tranche_id", "state",
+                     # "age_at_recruitment_sq"
+)
+
+# covariate_names <- covariate_names[covariate_names %in% colnames(master_table_F3_donorL)]
 
 covariate_names <- covariate_names[covariate_names %in% colnames(master_table_F3)]
 
