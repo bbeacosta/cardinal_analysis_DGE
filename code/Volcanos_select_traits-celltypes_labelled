@@ -1,0 +1,259 @@
+
+#----------------------------------------- FREEZE 3 -----------------------------------------------
+
+##################################### LINEAR MODEL FOR DGE ###################################
+# Load necessary libraries
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(EnhancedVolcano)
+library(stringr)
+library(tibble)
+
+
+
+# # Define base directory
+# base_dir <- "/Users/beatrice.costa/Library/CloudStorage/OneDrive-Htechnopole/Human Technopole/Cardinal/DGE_results_LM_csv_annotated"
+# dir.create(outdir_dir, showWarnings = FALSE)
+
+########################### Plot volcanos for selected traits and cell types #########################
+
+# print(filtered_diseases) # for info about available diseases analysed after filtering for minimum number of cases (n>=50)
+
+# Select traits for volcano plots - based on Giuditta's analyses
+selected_traits <- c("AB1_INTESTINAL_INFECTIONS", "D3_ANAEMIA_IRONDEF", "E4_HYTHY_AI_STRICT", "E4_OBESITY", "E4_HYPERCHOL", "E4_LIPOPROT", "H8_EXTERNAL", "H8_OTHEREAR", "I9_HYPTENS", 
+                     "I9_HYPTENSESS", "I9_IHD", "J10_ASTHMA_EXMORE", "J10_PNEUMONIA", "K11_CHOLELITH", "HYPOTHYROIDISM", "MDD", "T2D", "sex", "ancestry", "scaled_age", "scaled_BMI"
+                     ) 
+
+
+# Directory where annotated DEG CSVs are saved
+data_root_CT2 <- "/Users/beatrice.costa/Library/CloudStorage/OneDrive-Htechnopole/Human Technopole/Cardinal/DGE_results_LM_csv_annotated" # adjust to your root folder
+data_root_CT3 <- "/Users/beatrice.costa/Library/CloudStorage/OneDrive-Htechnopole/Human Technopole/Cardinal/CT3_DGE_analysis_csv_annotated" # adjust to your root folder
+
+celltypes_all <- list.dirs(data_root_CT3, recursive = FALSE, full.names = FALSE)
+
+# # Select list of cell types of interest 
+# celltypes_of_interest <- c("B_memory_IGHMhigh", "T_CD4_CTL", "T_CD4_EM", "T_CD4_Treg", "T_MAIT")
+# celltypes <- intersect(celltypes_all, celltypes_of_interest)
+
+# ct <- "T_CD4_CTL"
+# trait <- "D3_ANAEMIANAS"
+
+for(ct in celltypes_all){
+  print(ct)
+  
+  ct_dir <- file.path(data_root_CT3, ct, "data")   # make sure folder is 'data' exactly
+  if(!dir.exists(ct_dir)) {
+    message("Skipping, folder does not exist: ", ct_dir)
+    next
+  }
+  
+  csv_files_all <- list.files(ct_dir, pattern = "_top.*\\.csv$", full.names = TRUE)
+  if(length(csv_files_all) == 0) {
+    message("No files found in ", ct_dir)
+    next
+  }
+  
+  # plot_dir <- file.path(data_root_CT3, ct, "plots_FDR0.05_LogFC1_labelled")
+  plot_dir <- file.path(data_root_CT3, ct, "plots_FDR0.05_LogFC0.5_labelled")
+  dir.create(plot_dir, showWarnings = FALSE)
+  
+  # Subset list of csvs based on traits of interest
+  csv_files <- csv_files_all [
+    sapply(csv_files_all, function(f)
+      any(sapply(selected_traits, function(tr)
+        grepl(tr, basename(f), ignore.case = TRUE)
+        ))
+      )
+  ]
+  
+  # csv <- "/home/ivm/DGE_results_LM_csv_annotated/T_CD4_CTL/data/T_CD4_CTL_DGE_D3_ANAEMIANAS_top_annotated.csv"
+  
+  for(csv in csv_files){
+    fname <- basename(csv)
+    
+    print(fname)
+    # Define trait
+    ## Case 1: disease traits (unchanged)
+    if (grepl("_DGE_", fname)) {
+      
+      trait <- fname
+      trait <- sub("^.*?_DGE_", "", trait)
+      trait <- sub("_top.*$", "", trait)
+      
+    } else {
+      
+      ## Case 2: biological covariates
+      ## extract trait by matching selected_traits
+      trait <- selected_traits[
+        sapply(selected_traits, function(t)
+          grepl(paste0("_", t, "_"), fname))
+      ]
+      
+      if (length(trait) == 0) {
+        message("Skipping file (no matching trait): ", fname)
+        next
+      }
+      
+      trait <- trait[1]  # safety
+    }
+    
+    
+    # NOW trait = actual disease / bio-covariate name
+    message("Processing: ", ct, " - ", trait)
+    
+    # OPTIONAL: filter to selected traits
+    if (exists("selected_traits")) {
+      if (!trait %in% selected_traits) next
+    }
+    
+    
+    
+    tt <- read.csv(csv, stringsAsFactors = FALSE)
+    
+    # --- Force correct numeric types ---
+    tt$logFC      <- as.numeric(tt$logFC)
+    tt$P.Value  <- as.numeric(tt$P.Value)
+    tt$adj.P.Val  <- as.numeric(tt$adj.P.Val)
+    
+    # Check if it worked or skip:
+    if (!is.numeric(tt$logFC) | !is.numeric(tt$P.Value)) {
+      message("Skipping (non-numeric): ", csv)
+      next
+    }
+    
+    
+    # Optional: remove rows where conversion failed
+    tt <- tt[!is.na(tt$logFC) & !is.na(tt$P.Value), ]
+    
+    # Skip if empty
+    if (nrow(tt) == 0) {
+      message("No rows in ", fname, " - skipping.")
+      next
+    }
+    
+    # Annotate significance column (p.value < 0.05)
+    # tt <- tt %>%
+    #   mutate(Sig = ifelse(adj.P.Val < 0.05, "Sig", "NS"))
+    
+    tt <- tt %>%
+      mutate(
+        SigAdj = adj.P.Val <= 0.05,
+        SigRaw = P.Value < 0.05
+      )
+    
+    
+    tt <- tt %>%
+      mutate(Label = adj.P.Val <= 0.05 | abs(logFC) >= 0.5) # Adjust LFC when needed
+    
+    
+    if(!all(c("logFC", "P.Value", "adj.P.Val", "gene_name") %in% colnames(tt))) next
+
+    
+  
+    # Print summary stats for every comparison  
+    cat("\n====================================\n")
+    cat("CELL TYPE:", ct, "\n")
+    cat("TRAIT:", trait, "\n")
+    cat("FILE:", csv, "\n")
+    
+    cat("N rows:", nrow(tt), "\n")
+    
+    cat("P.Value summary:\n")
+    print(summary(tt$P.Value))
+    
+    cat("adj.P.Val summary:\n")
+    print(summary(tt$adj.P.Val))
+    
+    cat("Sig p < 0.05:", sum(tt$P.Value < 0.05, na.rm=TRUE), "\n")
+    cat("Sig FDR < 0.05:", sum(tt$adj.P.Val < 0.05, na.rm=TRUE), "\n")
+    
+    cat("logFC class:", class(tt$logFC), "\n")
+    cat("P.Value class:", class(tt$P.Value), "\n")
+    cat("adj.P.Val class:", class(tt$adj.P.Val), "\n")
+    
+    
+    # Create argument for custom color dots
+    keyvals <- ifelse(
+      tt$SigAdj & abs(tt$logFC) >= 0.5, "Adj.P.Val & Log2FC", # Adjust if LogFC threshold changes
+      ifelse(tt$SigAdj, "Adj.P.Val",
+             ifelse(abs(tt$logFC) >= 0.5, "Log2FC", "NS")) # Adjust if LogFC threshold changes
+    )
+    
+    keyvals <- factor(
+      keyvals,
+      levels = c("NS", "Log2FC", "Adj.P.Val", "Adj.P.Val & Log2FC")
+    )
+    
+    cols <- c(
+      "NS"        = "grey80",
+      "Log2FC"   = "darkgreen",
+      "Adj.P.Val" = "blue",
+      "Adj.P.Val & Log2FC" = "red"
+    )
+    
+    
+    tt$gene_name <- as.character(tt$gene_name)
+    
+    label_genes <- tt$gene_name[tt$Label & !is.na(tt$gene_name)]
+    
+    
+      
+      
+    
+    # Plot volcano
+    #pdf(file.path(plot_dir, paste0("volcano_", trait, ".pdf")), width = 7, height = 6)
+    enVol <- EnhancedVolcano(tt,
+                    lab = tt$gene_name,
+                    x = 'logFC',
+                    y = 'P.Value',
+                    pCutoff = 0.05,
+                    FCcutoff = 0.5, # adjust LFC cutoff when needed
+                    selectLab = label_genes,
+                    title = paste0("DGE by ", trait, " - ", ct),
+                    subtitle = "Raw p-values (y), FDR-based significance",
+                    # caption = paste0("Cases: ", n_cases, " | Controls: ", n_ctrl),,
+                    pointSize = 2.2,
+                    labSize = 3.0,
+                    colCustom = cols[keyvals],
+                    drawConnectors = TRUE, 
+                    widthConnectors = 0.5, 
+                    max.overlaps = Inf, 
+                    colAlpha = 0.9,
+                    legendPosition = 'right',
+                    legendLabSize = 10,
+                    legendIconSize = 3.0)
+    ggsave(enVol,file=paste0(plot_dir, paste0("/volcano_", trait, ".pdf")),device="pdf",width = 8, height = 5)
+    #dev.off()
+  }
+  }
+
+
+
+#####################################################################################################################################################
+
+
+
+csv <- "/Users/beatrice.costa/Library/CloudStorage/OneDrive-Htechnopole/Human Technopole/Cardinal/CT3_DGE_analysis_csv_annotated/T_CD8_EM_IFN/data/T_CD8_EM_IFN_DGE_H8_OTHEREAR_top_annotated.csv"
+
+# 1. Does R think the file exists?
+cat("file.exists:", file.exists(csv), "\n")
+
+# 2. file.info
+print(file.info(csv))
+
+# 3. Try to list the directory and show the exact name
+print(list.files(dirname(csv), pattern = basename(csv), full.names = TRUE))
+
+# 4. Try to read first lines (wrap in try to catch errors)
+cat("readLines: \n")
+try(print(readLines(csv, n = 10)), silent = FALSE)
+
+# 5. Show normalized path (helps spot weird characters)
+cat("normalizePath (mustWork=FALSE):", normalizePath(csv, winslash="/", mustWork = FALSE), "\n")
+
+
+d <- dirname(csv)
+cat("Directory:", d, "\n")
+print(list.files(d, all.files = TRUE, full.names = FALSE)[1:200])   # show files seen by R
+print(list.files(d, pattern = "_top.*\\.csv$", full.names = TRUE))  # files matching pattern
