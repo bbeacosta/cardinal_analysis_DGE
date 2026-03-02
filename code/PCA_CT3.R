@@ -104,6 +104,7 @@ dir.create(pca_dir, recursive = TRUE, showWarnings = FALSE)
 
 # ---- Main loop over cell types ----
 # ct <- "B_exhausted"
+# ct <- "Basophil_IFN"
 
 for(ct in names(filtered_counts_list)){
   message("Processing cell type: ", ct)
@@ -158,7 +159,16 @@ for(ct in names(filtered_counts_list)){
   
   # ---- PCA ----
   pca <- prcomp(t(logCPM), scale. = TRUE, center = TRUE)
-  pcs_to_use <- 1:min(nPC, ncol(pca$x))
+  
+  # If PCA failed or returned no components → skip
+  if (is.null(pca$x) || ncol(pca$x) == 0) {
+    message("  -> PCA returned no components. Skipping ", ct)
+    next
+  }
+  
+  # Only use PCs that actually exist
+  pcs_to_use <- seq_len(min(nPC, ncol(pca$x)))
+  
   pca_list[[ct]] <- pca
   var_exp <- (pca$sdev^2)/sum(pca$sdev^2)
   pc_var_explained[[ct]] <- var_exp
@@ -218,7 +228,11 @@ for(ct in names(filtered_counts_list)){
   scores <- merge(scores, meta, by = "donor_uid_tpd_norm", sort = FALSE)
   scores <- scores[match(rownames(pca$x), scores$donor_uid_tpd_norm), ]
   
+  available_pcs <- colnames(scores)
+  
   # Scatter plot PC1-2
+  if(all(c("PC1", "PC2") %in% available_pcs)) {
+    
   pdf(file.path(ct_dir, paste0(ct, "_PC1_PC2_by_covariates.pdf")), width=6, height=5)
   for(covn in covariate_names){
     covv <- scores[[covn]]
@@ -235,24 +249,42 @@ for(ct in names(filtered_counts_list)){
   }
   dev.off()
   
-  # Scatter plot PC3-4
-  pdf(file.path(ct_dir, paste0(ct, "_PC3_PC4_by_covariates.pdf")), width=6, height=5)
-  for(covn in covariate_names){
-    covv <- scores[[covn]]
-    if(is.numeric(covv)){
-      p <- ggplot(scores, aes(PC3, PC4, color = covv)) +
-        geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
-        theme_minimal()
-    } else {
-      p <- ggplot(scores, aes(PC3, PC4, color = as.factor(covv))) +
-        geom_point(size = 2) + labs(color = covn, title = paste(ct, "- colored by", covn)) +
-        theme_minimal()
-    }
-    print(p)
+  } else {
+    message("  -> Skipping PC1-PC2 plot for ", ct, " (PC1 or PC2 missing)")
   }
-  dev.off()
+  
+  # Scatter plot PC3-4
+  if(all(c("PC3", "PC4") %in% available_pcs)) {
+    
+    pdf(file.path(ct_dir, paste0(ct, "_PC3_PC4_by_covariates.pdf")), width=6, height=5)
+    
+    for(covn in covariate_names){
+      covv <- scores[[covn]]
+      
+      if(is.numeric(covv)){
+        p <- ggplot(scores, aes(x = .data$PC3, y = .data$PC4, color = covv)) +
+          geom_point(size = 2) +
+          labs(color = covn, title = paste(ct, "- colored by", covn)) +
+          theme_minimal()
+      } else {
+        p <- ggplot(scores, aes(x = .data$PC3, y = .data$PC4, color = as.factor(covv))) +
+          geom_point(size = 2) +
+          labs(color = covn, title = paste(ct, "- colored by", covn)) +
+          theme_minimal()
+      }
+      
+      print(p)
+    }
+    
+    dev.off()
+    
+  } else {
+    message("  -> Skipping PC3-PC4 plot for ", ct, " (PC3 or PC4 missing)")
+  }
   
   # Scatter plot PC5-6
+  if(all(c("PC5", "PC6") %in% available_pcs)) {
+    
   pdf(file.path(ct_dir, paste0(ct, "_PC5_PC6_by_covariates.pdf")), width=6, height=5)
   for(covn in covariate_names){
     covv <- scores[[covn]]
@@ -268,6 +300,10 @@ for(ct in names(filtered_counts_list)){
     print(p)
   }
   dev.off()
+} else {
+  message("  -> Skipping PC5-PC6 plot for ", ct, " (PC5 or PC6 missing)")
+}
+
   
   # ---- PCs exceeding R² threshold ----
   pcs_to_include <- which(colSums(r2_mat > r2_threshold, na.rm = TRUE) > 0)
