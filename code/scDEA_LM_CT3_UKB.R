@@ -11,6 +11,15 @@ if (!requireNamespace("BiocManager", quietly = TRUE)) {
   install.packages("BiocManager")
 }
 
+# Intall compatible version of ggrepel or it won't install EnhancedVolcano on this R module version on cluster
+install.packages("remotes", repos = "https://cloud.r-project.org")
+
+remotes::install_version(
+  "ggrepel",
+  version = "0.9.6",
+  repos = "https://cloud.r-project.org"
+)
+
 # Full package list
 pkgs <- c(
   "edgeR",

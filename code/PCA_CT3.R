@@ -17,7 +17,8 @@ library(reshape2)
 master_table_F3 <- read.csv("/home/rstudio-server/F3_UKB_adata_obs_with_metadata.csv")      # Master table contains: age, sex, ethnicity, date at PBMC collection
 
 # Filtered counts list
-readRDS(filtered_counts_list, file = "/home/rstudio-server/filtered_counts_list.rds")
+# readRDS(filtered_counts_list, file = "/home/rstudio-server/filtered_counts_list.rds")
+filtered_counts_list <- readRDS("/home/rstudio-server/filtered_counts_list.rds")
 
 # ---- User parameters ----
 nPC <- 15
@@ -29,9 +30,8 @@ r2_threshold <- 0.05
 # Specify covariates of interest
 # skip_cols <- c("unique_id")
 covariate_names <- c("sex", "smoking_status_combined", 
-                     "bmi", "age"
-                     # ,"pool_id", "tranche_id", "state",
-                     # "age_at_recruitment_sq"
+                     "bmi", "age","pool_id", "tranche_id"
+                     # ,"state", "age_at_recruitment_sq"
 )
 
 # covariate_names <- covariate_names[covariate_names %in% colnames(master_table_F3_donorL)]
@@ -39,8 +39,7 @@ covariate_names <- c("sex", "smoking_status_combined",
 covariate_names <- covariate_names[covariate_names %in% colnames(master_table_F3)]
 
 ### Load necesary files
-# Load filtered counts list
-filtered_counts_list <- readRDS("/home/rstudio-server/filtered_counts_list.rds")
+
 # master table - donor level (each row is a donor, already aggregated)
 # master_table_F3 <- read.table("/genesandhealth/red/DanielaZanotti/CARDINAL_db/v4/data/v4_master_table.tsv", header = TRUE, sep = "\t", check.names = FALSE)      # Master table contains: age, sex, ethnicity, date at PBMC collection
 # str(master_table_F3)
@@ -71,10 +70,41 @@ r2_list <- list()
 pval_list <- list()
 pc_var_explained <- list()
 
+# Processed mastertable
+master_table_F3_donorL <- master_table_F3 %>%
+  dplyr::select(
+    eid,
+    donor_uid_tpd,
+    tranche_id,
+    pool_id,
+    sex,
+    age,
+    bmi,
+    smoking_status_combined, 
+    smoking_status_numeric
+  ) %>%
+  distinct()
 
-# ct <- "B_exhausted"
+any(duplicated(master_table_F3_donorL$eid)) # should return FALSE
+
+# Add column matching colnames of filteredcountslist
+master_table_F3_donorL <- master_table_F3_donorL %>%
+  dplyr::mutate(
+    donor_uid_tpd_norm = donor_uid_tpd %>%
+      stringr::str_replace_all("\r", "") %>%
+      stringr::str_trim() %>%
+      stringr::str_replace_all("-", "_")   # <-- ONLY align dash to underscore
+  )
+
+# Define output directory
+pca_dir <- "/home/rstudio-server/PCA_CT3"
+
+# Create directory if it doesn't exist
+dir.create(pca_dir, recursive = TRUE, showWarnings = FALSE)
 
 # ---- Main loop over cell types ----
+# ct <- "B_exhausted"
+
 for(ct in names(filtered_counts_list)){
   message("Processing cell type: ", ct)
   counts <- filtered_counts_list[[ct]]
@@ -86,24 +116,32 @@ for(ct in names(filtered_counts_list)){
   }
   
   # Align metadata
-  # Align metadata
-  meta <- master_table_F3
-  meta$donor_id_match <- gsub("--", "__", master_table_F3$donor_uid_tpd)
-  head(meta$donor_id_match)
+  colnames(counts) <- stringr::str_replace_all(colnames(counts), "-", "_")
   
-  meta <- meta[match(colnames(counts), meta$donor_id_match), ]
-  missing_meta_idx <- which(is.na(meta$donor_id_match))
+  # Match metadata
+  meta <- master_table_F3_donorL[
+    match(colnames(counts), master_table_F3_donorL$donor_uid_tpd_norm),
+  ]
+  
+  # Identify unmatched samples
+  missing_meta_idx <- which(is.na(meta$donor_uid_tpd_norm))
+  
   if(length(missing_meta_idx) > 0){
     message("  -> dropping ", length(missing_meta_idx), " samples with missing metadata")
+    
     keep_cols <- setdiff(colnames(counts), colnames(counts)[missing_meta_idx])
     counts <- counts[, keep_cols, drop = FALSE]
-    meta <- master_table_F3[match(colnames(counts), master_table_F3$unique_id), ]
+    
+    # Re-match after dropping
+    meta <- master_table_F3_donorL[
+      match(colnames(counts), master_table_F3_donorL$donor_uid_tpd_norm),
+    ]
   }
+  
   if(ncol(counts) < 2){
     message("  -> not enough samples after metadata filtering. Skipping ", ct)
     next
   }
-  
   # ---- edgeR normalization ----
   dge <- DGEList(counts = counts)
   dge <- calcNormFactors(dge)
@@ -124,13 +162,8 @@ for(ct in names(filtered_counts_list)){
   pca_list[[ct]] <- pca
   var_exp <- (pca$sdev^2)/sum(pca$sdev^2)
   pc_var_explained[[ct]] <- var_exp
+
   
-  # Save pca_list
-  # Define directory
-  pca_dir <- "/home/rstudio-server/PCA_CT3"
-  
-  # Create directory if it doesn't exist
-  dir.create(pca_dir, recursive = TRUE, showWarnings = FALSE)
   
   # Create celltype-specific directory
   ct_dir <- file.path(pca_dir, ct)

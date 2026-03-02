@@ -27,9 +27,8 @@ r2_threshold <- 0.05
 # Specify covariates of interest
 # skip_cols <- c("unique_id")
 covariate_names <- c("sex", "smoking_status_combined", 
-                     "bmi", "age"
-                     # ,"pool_id", "tranche_id", "state",
-                     # "age_at_recruitment_sq"
+                     "bmi", "age","pool_id", "tranche_id"
+                     # ,"state", "age_at_recruitment_sq"
 )
 
 covariate_names <- covariate_names[covariate_names %in% colnames(master_table_F3_donorL)]
