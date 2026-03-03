@@ -479,8 +479,8 @@ for (ct in names(filtered_counts_list)) {
   bio_covs <- c("smoking_status_combined", "scaled_age", "sex", "scaled_bmi")
   pc_prefix <- "PC"      # columns in pc_scores_df
   
-  counts <- as.matrix(counts_list[[ct]])
-  if (is.null(counts) || !is.matrix(counts) || ncol(counts) < 4) {
+  counts <- counts_list[[ct]]
+  if (is.null(counts) || ncol(counts) < 4) { # !is.matrix(counts) || - removed bcs made counts invalid
     message("Skipping ", ct, ": invalid counts or too few samples.")
     next
   }
@@ -512,8 +512,8 @@ for (ct in names(filtered_counts_list)) {
   
   # Scale continuous variables so that they all have mean = 0 and sd = 1, to improve model stability and make effect sizes comparable
   # When covariates have different numeric scales, scaling makes all covariates comparable in scale, helping model algorithm converge faster and more reliably
-  meta_sub$scaled_age <- as.numeric(scale(meta_sub$age_at_recruitment_first))
-  meta_sub$scaled_BMI <- as.numeric(scale(meta_sub$BMI))
+  meta_sub$scaled_age <- as.numeric(scale(meta_sub$age))
+  meta_sub$scaled_bmi <- as.numeric(scale(meta_sub$bmi))
   
   
   # ----- Attach PCs as technical covariates -----
@@ -523,7 +523,7 @@ for (ct in names(filtered_counts_list)) {
     pc_cols <- grep(paste0("^", pc_prefix), colnames(pc_scores_df), value = TRUE)
     if (length(pc_cols) > 0) {
       pc_cols_use <- head(pc_cols, n_PC_use)
-      pc_scores_sub <- pc_scores_df[match(meta_sub$donor_id_match, pc_scores_df$unique_id), pc_cols_use, drop = FALSE]
+      pc_scores_sub <- pc_scores_df[match(meta_sub$donor_uid_tpd_norm, pc_scores_df$unique_id), pc_cols_use, drop = FALSE]
       meta_sub[, pc_cols_use] <- pc_scores_sub
     } else {
       pc_cols_use <- character(0)
@@ -547,7 +547,6 @@ for (ct in names(filtered_counts_list)) {
   # ----- Filter samples & genes -----
   keep_samples <- complete.cases(meta_sub[, c(pc_cols_use, bio_covs), drop = FALSE])
   meta_sub <- meta_sub[keep_samples, , drop = FALSE]
-  counts <- counts[, meta_sub$donor_id_match, drop = FALSE]
   
   # Compute qc metrics
   # qc_metrics[[ct]] <- data.frame(
@@ -612,7 +611,7 @@ for (ct in names(filtered_counts_list)) {
   # 1. Build design (do NOT filter columns)
   design_full <- model.matrix(
     ~ scaled_PC1 + scaled_PC2 + scaled_PC3 + scaled_PC4 +
-      ancestry + sex + scaled_age + scaled_BMI,
+      smoking_status_combined + sex + scaled_age + scaled_bmi,
     data = meta_sub
   )
   
@@ -652,15 +651,15 @@ for (ct in names(filtered_counts_list)) {
   }
   
   # 1) Check scaled_BMI existence and variability
-  if ("scaled_BMI" %in% colnames(design_full)) {
-    bmi_col <- get_col_safe(design_full, "scaled_BMI")
+  if ("scaled_bmi" %in% colnames(design_full)) {
+    bmi_col <- get_col_safe(design_full, "scaled_bmi")
     # convert to vector for unique() check
     bmi_vec <- as.vector(bmi_col)
     n_non_na_unique <- length(unique(bmi_vec[!is.na(bmi_vec)]))
     if (n_non_na_unique <= 1) {
       message(" - scaled_BMI has <=1 unique non-NA value (", n_non_na_unique, "). Removing from design.")
       # remove column
-      keep_cols <- setdiff(colnames(design_full), "scaled_BMI")
+      keep_cols <- setdiff(colnames(design_full), "scaled_bmi")
       design_full <- design_full[, keep_cols, drop = FALSE]
     } else {
       message(" - scaled_BMI retained (", n_non_na_unique, " unique non-NA values).")
