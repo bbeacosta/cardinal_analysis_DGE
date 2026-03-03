@@ -385,7 +385,7 @@ sig_data <- as.matrix(sig_data[,-1])
 rownames(sig_data) <- rownames(heatmap_data)
 
 # ---- Plot heatmap ----
-pdf("/home/ivm/CT3_DGE_analysis/Max_R2_covariates_heatmap_allCovariates.pdf", width = 10, height = 8)
+pdf("/home/rstudio-server//PCA_CT3/Max_R2_covariates_heatmap_allCovariates.pdf", width = 10, height = 8)
 pheatmap(
   heatmap_data,
   cluster_rows = TRUE,
