@@ -1143,18 +1143,10 @@ for (ct in names(filtered_counts_list)) {
     
     coef_name <- coef_name[1]
     
+    # disease_coef <- grep(paste0("^", disease_col), colnames(design_d), value = TRUE)[1]
     
     
-    
-    
-    
-    
-    
-    
-    disease_coef <- grep(paste0("^", disease_col), colnames(design_d), value = TRUE)[1]
-    
-    
-    coef_idx <- which(colnames(fit_d$coefficients) == disease_coef)
+    # coef_idx <- which(colnames(fit_d$coefficients) == disease_coef)
     tt_d <- topTable(fit_d, coef = coef_name, number = Inf, sort.by = "P")
     
     
@@ -1220,8 +1212,8 @@ for (ct in names(filtered_counts_list)) {
     cat("non-NA coefficients:",
         sum(!is.na(fit_d$coefficients[, coef_name])), "\n")
     
-    cat("non-NA p-values:",
-        sum(!is.na(fit_d$p.value[, coef_idx])), "\n")
+    # cat("non-NA p-values:",
+    #     sum(!is.na(fit_d$p.value[, coef_idx])), "\n")
     
     cat("residual df:",
         fit_d$df.residual[1], "\n")
@@ -1305,25 +1297,25 @@ for (ct in names(filtered_counts_list)) {
 
 
 
-# Bind rows for computed variance explained across cell types
-variance_df <- do.call(rbind, lapply(names(variance_explained_list), function(ct) {
-  data.frame(
-    celltype = ct,
-    term = names(variance_explained_list[[ct]]),
-    var_exp = unlist(variance_explained_list[[ct]])
-  )
-}))
-
-# Bind rows for qc metrics
-qc_df <- bind_rows(qc_metrics)
-
-# Save all outputs
-write.csv(variance_df, "/home/ivm/CT3_DGE_analysis/summary_variance_explained.csv", row.names=FALSE)
-# write.csv(genes_tested_df, "/home/ivm/CT3_DGE_analysis/summary_gene_counts.csv", row.names=FALSE)
-write.csv(case_counts_df, "/home/ivm/CT3_DGE_analysis/summary_case_counts.csv", row.names=FALSE)
-write.csv(qc_df, "/home/ivm/CT3_DGE_analysis/summary_qc_metrics.csv", row.names=FALSE)
-
-
+# # Bind rows for computed variance explained across cell types
+# variance_df <- do.call(rbind, lapply(names(variance_explained_list), function(ct) {
+#   data.frame(
+#     celltype = ct,
+#     term = names(variance_explained_list[[ct]]),
+#     var_exp = unlist(variance_explained_list[[ct]])
+#   )
+# }))
+# 
+# # Bind rows for qc metrics
+# qc_df <- bind_rows(qc_metrics)
+# 
+# # Save all outputs
+# write.csv(variance_df, "/home/ivm/CT3_DGE_analysis/summary_variance_explained.csv", row.names=FALSE)
+# # write.csv(genes_tested_df, "/home/ivm/CT3_DGE_analysis/summary_gene_counts.csv", row.names=FALSE)
+# write.csv(case_counts_df, "/home/ivm/CT3_DGE_analysis/summary_case_counts.csv", row.names=FALSE)
+# write.csv(qc_df, "/home/ivm/CT3_DGE_analysis/summary_qc_metrics.csv", row.names=FALSE)
+# 
+# 
 
 
 
