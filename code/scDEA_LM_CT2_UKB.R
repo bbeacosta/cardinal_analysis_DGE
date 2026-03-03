@@ -918,7 +918,7 @@ for (ct in names(filtered_counts_list)) {
     merged_pheno <- merged_pheno[match(shared_ids, merged_pheno$donor_uid_tpd_norm), , drop = FALSE]
     merged_pheno$donor_uid_tpd_norm <- as.character(merged_pheno$donor_uid_tpd_norm)
     
-    saveRDS(merged_pheno, file.path(data_dir, paste0(ct, "_merged_pheno.rds")))
+    # saveRDS(merged_pheno, file.path(data_dir, paste0(ct, "_merged_pheno.rds")))
     
     counts_d <- counts[, shared_ids, drop = FALSE]
     

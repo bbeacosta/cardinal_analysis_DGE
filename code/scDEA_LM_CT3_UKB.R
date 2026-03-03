@@ -925,13 +925,12 @@ for (ct in names(filtered_counts_list)) {
   
   # ---- Detect all binary disease columns in phenotypes ----
   
-  # Optionally skip first N metadata columns (e.g., skip 2:3)
-  # Remove rows containing -1 in any phenotype column (excluding unique_id)
-  phenotypes_sub <- phenotypes[, -c(1,2,3, 348), drop = FALSE]
-  
-  
+  # Remove rows containing -1 in any phenotype column (excluding $eid)
+  phenotypes_sub <- phenotypes %>%
+    dplyr::filter(!if_any(-eid, ~ . == -1))
+
   # Define disease traits columns
-  id_col <- "unique_id"   # explicitly define ID column name, which is the only non-disease col
+  id_col <- "eid"   # explicitly define ID column name, which is the only non-disease col
   disease_cols <- setdiff(colnames(phenotypes_sub), id_col)
   
   message("Detected ", length(disease_cols), " binary disease phenotypes.")
@@ -959,17 +958,17 @@ for (ct in names(filtered_counts_list)) {
   phenotypes_sub <- phenotypes_sub[, c(id_col, filtered_diseases)]
   
   # Run disease loop
-  # disease_col <- "ATOPIC_DERM"
+  disease_col <- "ATOPIC_DERM"
   
   for (disease_col in filtered_diseases) {
     
     message("Running DGE for disease: ", disease_col)
     
     # merge phenotype column
-    pheno_sub <- phenotypes[, c("unique_id", disease_col), drop = FALSE]
-    merged_pheno <- merge(meta_sub, pheno_sub, by = "unique_id", all.x = FALSE, all.y = FALSE)
+    pheno_sub <- phenotypes[, c("eid", disease_col), drop = FALSE]
+    merged_pheno <- merge(meta_sub, pheno_sub, by = "eid", all.x = FALSE, all.y = FALSE)
     # convert to character
-    merged_pheno$unique_id <- as.character(merged_pheno$unique_id)
+    merged_pheno$eid <- as.character(merged_pheno$eid)
     
     # keep only Control (0) and Case (1)
     merged_pheno <- merged_pheno[merged_pheno[[disease_col]] %in% c(0,1), , drop = FALSE]
@@ -981,10 +980,10 @@ for (ct in names(filtered_counts_list)) {
     
     # subset counts
     # Remove NAs in $unique_ID
-    merged_pheno <- merged_pheno[!is.na(merged_pheno$donor_id_match), ]
+    merged_pheno <- merged_pheno[!is.na(merged_pheno$eid), ]
     
     # Intersect IDs
-    shared_ids <- intersect(merged_pheno$donor_id_match, colnames(counts))
+    shared_ids <- intersect(merged_pheno$donor_uid_tpd_norm, colnames(counts))
     
     if (length(shared_ids) < 3) {
       message("Skipping: too few shared IDs")
@@ -992,22 +991,24 @@ for (ct in names(filtered_counts_list)) {
     }
     
     # Merge and subset counts based on safe IDs
-    merged_pheno <- merged_pheno[match(shared_ids, merged_pheno$donor_id_match), , drop = FALSE]
-    merged_pheno$donor_id_match <- as.character(merged_pheno$donor_id_match)
+    merged_pheno <- merged_pheno[match(shared_ids, merged_pheno$donor_uid_tpd_norm), , drop = FALSE]
+    merged_pheno$donor_uid_tpd_norm <- as.character(merged_pheno$donor_uid_tpd_norm)
+    
     
     # saveRDS(merged_pheno, file.path(data_dir, paste0(ct, "_merged_pheno.rds")))
     
     counts_d <- counts[, shared_ids, drop = FALSE]
     
     # Check what was filtered out and why
-    setdiff(merged_pheno$donor_id_match, colnames(counts))
+    setdiff(merged_pheno$donor_uid_tpd_norm, colnames(counts))
     
-    length(merged_pheno$donor_id_match)
-    length(unique(merged_pheno$donor_id_match)) # no duplicates
+    length(merged_pheno$donor_uid_tpd_norm)
+    length(unique(merged_pheno$donor_uid_tpd_norm)) # no duplicates
     length(colnames(counts)) #counts number vs phenotypes length is there is mismatch
-    setdiff(merged_pheno$donor_id_match, colnames(counts))[1:20]
+    setdiff(merged_pheno$donor_uid_tpd_norm, colnames(counts))[1:20]
     
-    sum(is.na(merged_pheno$donor_id_match))
+    sum(is.na(merged_pheno$donor_uid_tpd_norm))
+    head(merged_pheno$donor_uid_tpd_norm[is.na(merged_pheno$donor_uid_tpd_norm)])
     head(merged_pheno$donor_id_match[is.na(merged_pheno$donor_id_match)])
     
     # # Compute case/control counts per disease
