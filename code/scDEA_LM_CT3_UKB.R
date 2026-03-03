@@ -302,23 +302,23 @@ filtered_counts_list <- readRDS("/home/rstudio-server/filtered_counts_list.rds")
 # traits_macrocat <- read.csv("/genesandhealth/red/DanielaZanotti/data/disease/name_disease.csv", header = TRUE) # extended disease name for plotting and disease apparatus macrocategories
 
 # phenotypes case-controls
-phenotypes <-  read.table("/genesandhealth/red/DanielaZanotti/data/Freeze3/disease/disease_cases_controls_all.tsv", header = TRUE, sep = "\t", check.names = FALSE)      
+phenotypes <-  read.table("/home/rstudio-server/disease_cases_controls_all.tsv", header = TRUE, sep = "\t", check.names = FALSE)      
 str(phenotypes)
 head(phenotypes)
 
 # load PCA object
-pca_list <- readRDS("/home/ivm/CT3_DGE_analysis/pca_list.rds")
+pca_list <- readRDS("/home/rstudio-server/PCA_CT3/pca_list.rds")
 
 
 # master table - donor level (each row is a donor, already aggregated)
-master_table_F3 <- read.table("/genesandhealth/red/DanielaZanotti/CARDINAL_db/v4/data/v4_master_table.tsv", header = TRUE, sep = "\t", check.names = FALSE)      # Master table contains: age, sex, ethnicity, date at PBMC collection
+master_table_F3 <- read.table("/home/rstudio-server/F3_UKB_adata_obs_with_metadata.csv", header = TRUE, sep = "\t", check.names = FALSE)      # Master table contains: age, sex, ethnicity, date at PBMC collection
 str(master_table_F3)
 head(master_table_F3)
 
-# obs - cell level (each row is a cell, not aggregated by donor like pseudobulks) - for ID conversion with phenotypes
-obs_clean <- read.table("/genesandhealth/red/DanielaZanotti/data/Freeze3/obs_gh-ContaminationFree-noDoublets-annotated-QCed-counts_CLEAN.tsv", header = TRUE, sep = "\t", check.names = FALSE)   # Vacutainer ID
-str(obs_clean)
-head(obs_clean)
+# # obs - cell level (each row is a cell, not aggregated by donor like pseudobulks) - for ID conversion with phenotypes
+# obs_clean <- read.table("/genesandhealth/red/DanielaZanotti/data/Freeze3/obs_gh-ContaminationFree-noDoublets-annotated-QCed-counts_CLEAN.tsv", header = TRUE, sep = "\t", check.names = FALSE)   # Vacutainer ID
+# str(obs_clean)
+# head(obs_clean)
 
 
 
@@ -326,24 +326,29 @@ head(obs_clean)
 ### Match phenotypes IDs with counts IDs using obs_clean
 # Create column in obs_clean that combines chromium_run_id and then _ donor_id columns to match pseudobulks
 # Create a new column combining chromium_run_id and donor_id
-obs_clean <- obs_clean %>%
-  mutate(unique_id = paste(chromium_run_id, donor_id, sep = "_"))
-colnames(obs_clean)
-head(obs_clean$unique_id)
-
-# Reduce obs_clean (cell-level metadata) to one row per donor (only keep unique ids for unique_id, state and vacutainer_id)
-obs_id_map <- obs_clean %>%
-  dplyr::select(vacutainer_id, unique_id, state) %>%
-  distinct(vacutainer_id, .keep_all = TRUE)  # one per donor
-
-# Join with phenotypes (donor-level metadata) --> vacutainer_id (obs_clean) with CARDINAL_ID_sample1 (mastertable) columns
-phenotypes <- phenotypes %>%
-  left_join(obs_id_map, by = c("CARDINAL_ID_sample1" = "vacutainer_id"))
+# obs_clean <- obs_clean %>%
+#   mutate(unique_id = paste(chromium_run_id, donor_id, sep = "_"))
+# colnames(obs_clean)
+# head(obs_clean$unique_id)
+# 
+# # Reduce obs_clean (cell-level metadata) to one row per donor (only keep unique ids for unique_id, state and vacutainer_id)
+# obs_id_map <- obs_clean %>%
+#   dplyr::select(vacutainer_id, unique_id, state) %>%
+#   distinct(vacutainer_id, .keep_all = TRUE)  # one per donor
+# 
+# # Join with phenotypes (donor-level metadata) --> vacutainer_id (obs_clean) with CARDINAL_ID_sample1 (mastertable) columns
+# phenotypes <- phenotypes %>%
+#   left_join(obs_id_map, by = c("CARDINAL_ID_sample1" = "vacutainer_id"))
+# 
+# # Remove NAs from $unique_id column
+# phenotypes <- phenotypes[!is.na(phenotypes$unique_id), ]
 
 # Remove NAs from $unique_id column
-phenotypes <- phenotypes[!is.na(phenotypes$unique_id), ]
+phenotypes <- phenotypes[!is.na(phenotypes$eid), ]
 
-
+# Check I have only non-caucasian donors and no duplicates in metadata
+# Metadata are cell-level, so I need to transform them to donor-level data
+unique(master_table_F3$ancestry)
 
 
 # ================= HELPER FUNCTIONS =================
@@ -437,7 +442,7 @@ qc_metrics <- list()
 # counts_list[["T_CD8_prolif"]] <- NULL
 # 
 
-# ct <- "B_exhausted"   
+ ct <- "B_exhausted"   
 
 # ct <- "B_memory_IGHMhigh_IFN"
 
@@ -446,13 +451,18 @@ for (ct in names(filtered_counts_list)) {
   
   # Iteratively create results folders for specific outputs
   # Create folder for this cell type
-  ct_dir <- file.path(base_dir, ct)
+  # Create folder for this cell type
+  results_dir <- file.path(base_dir, "results_DGE")
+  ct_dir <- file.path(results_dir, ct)
   data_dir  <- file.path(ct_dir, "data")
   plots_dir <- file.path(ct_dir, "plots")
   
+  dir.create(results_dir, showWarnings = FALSE)
   dir.create(ct_dir,  showWarnings = FALSE)
   dir.create(data_dir,  showWarnings = FALSE)
   dir.create(plots_dir, showWarnings = FALSE)
+  
+  
   
   
   ### Number of PCs to include as technical covariates
@@ -466,11 +476,8 @@ for (ct in names(filtered_counts_list)) {
   # Input data
   counts_list <- filtered_counts_list    # genes x samples
   
-  bio_covs <- c("ancestry", "scaled_age", "sex", "scaled_BMI")
+  bio_covs <- c("smoking_status_combined", "scaled_age", "sex", "scaled_bmi")
   pc_prefix <- "PC"      # columns in pc_scores_df
-  
-  out_dir <- "/home/ivm/CT3_DGE_analysis/DGE_results_LM"
-  dir.create(out_dir, showWarnings = FALSE)
   
   counts <- as.matrix(counts_list[[ct]])
   if (is.null(counts) || !is.matrix(counts) || ncol(counts) < 4) {
@@ -478,32 +485,29 @@ for (ct in names(filtered_counts_list)) {
     next
   }
   # Remove NAs from $pool_id column in mastertable
-  meta_all <- master_table_F3 [!is.na(master_table_F3$pool_id), ]
+  meta_all <- master_table_F3_donorL[!is.na(master_table_F3_donorL$pool_id), ]
   
-  # Combine pool_id and donor_id into a single column with an underscore
-  meta_all$unique_id <- paste(meta_all$pool_id, meta_all$donor_id, sep = "_")
-  
-  # Check the first few to confirm
-  head(meta_all$donor_uid_tpd)
-  head(colnames(counts))
-  
+  # # Combine pool_id and donor_id into a single column with an underscore
+  # meta_all$unique_id <- paste(meta_all$pool_id, meta_all$donor_id, sep = "_")
+  # 
+  # # Check the first few to confirm
+  # head(meta_all$donor_uid_tpd)
+  # head(colnames(counts))
+  # 
   # Align metadata
-  meta_all$donor_id_match <- gsub("--", "__", meta_all$donor_uid_tpd)
-  head(meta_all$donor_id_match)
-  
-  shared_ids <- intersect(colnames(counts), meta_all$donor_id_match)
+  shared_ids <- intersect(colnames(counts), meta_all$donor_uid_tpd_norm)
   counts <- counts[, shared_ids, drop = FALSE]
-  meta_sub <- meta_all[match(shared_ids, meta_all$donor_id_match), , drop = FALSE]
-  stopifnot(all(colnames(counts) == meta_sub$donor_id_match))
+  meta_sub <- meta_all[match(shared_ids, meta_all$donor_uid_tpd_norm), , drop = FALSE]
+  stopifnot(all(colnames(counts) == meta_sub$donor_uid_tpd_norm))
   
   # Make ancestry and sex as factors so that they are treated by limma as binary variables and not continuous variables
-  meta_sub$sex <- factor(meta_sub$sex, levels = c(1, 2), labels = c("F", "M"))
-  meta_sub$ancestry<- factor(meta_sub$ancestry)
+  meta_sub$sex <- factor(meta_sub$sex)
+  meta_sub$smoking_status_combined <- factor(meta_sub$smoking_status_combined)
   
   # Optional but recommended: set biologically meaningful reference
   # adjust levels as appropriate for your encoding
   levels(meta_sub$sex)
-  meta_sub$sex <- relevel(meta_sub$sex, ref = "M")
+  meta_sub$sex <- relevel(meta_sub$sex, ref = "Male")
   
   
   # Scale continuous variables so that they all have mean = 0 and sd = 1, to improve model stability and make effect sizes comparable
