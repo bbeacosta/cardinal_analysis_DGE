@@ -739,11 +739,32 @@ for (ct in names(filtered_counts_list)) {
   fit_full <- lmFit(vobj, design_full)
   fit_full <- eBayes(fit_full)
   
-  # Test coefficients
-  topTable(fit_full, coef = "sexF")
-  topTable(fit_full, coef = "ancestryPakistani")
-  topTable(fit_full, coef = "scaled_BMI")
-  topTable(fit_full, coef = "scaled_age")
+  coef_names <- colnames(fit_full$coefficients)
+  
+  # Test coefficients safely
+  if ("sexFemale" %in% coef_names) {
+    topTable(fit_full, coef = "sexFemale")
+  } else {
+    message("Skipping sexFemale: not in model for ", ct)
+  }
+  
+  if ("smoking_status_combinedCurrent" %in% coef_names) {
+    topTable(fit_full, coef = "smoking_status_combinedCurrent")
+  } else {
+    message("Skipping smoking_status_combinedCurrent: not in model for ", ct)
+  }
+  
+  if ("scaled_bmi" %in% coef_names) {
+    topTable(fit_full, coef = "scaled_bmi")
+  } else {
+    message("Skipping scaled_bmi: not in model for ", ct)
+  }
+  
+  if ("scaled_age" %in% coef_names) {
+    topTable(fit_full, coef = "scaled_age")
+  } else {
+    message("Skipping scaled_age: not in model for ", ct)
+  }
   
   saveRDS(fit_full, file.path(data_dir, paste0(ct, "_fit_full.rds")))
   
@@ -773,97 +794,130 @@ for (ct in names(filtered_counts_list)) {
   library(ggplot2)
   
   for (bio in bio_covs) {
-    # Find coefficients corresponding to that covariate
-    # First check coefficients names
-    colnames(fit_full$coefficients)
-    print(bio)
-    # Map bio_covs to coefficient names
+    
+    # --- check coefficient names
     coef_names <- colnames(fit_full$coefficients)
+    print(bio)
     
-    #coef_to_test <- get_coef_name(bio, colnames(fit_full$coefficients))
-    coef_to_test <- colnames(fit_full$coefficients)[grep(bio,colnames(fit_full$coefficients))]
+    # --- find coefficients for this covariate
+    # use ^ so "sex" doesn't match "sexfake" etc.
+    coef_to_test <- coef_names[grep(paste0("^", bio), coef_names)]
     
-    # Generate topTable  
-    tt <- topTable(fit_full, coef = coef_to_test, number = Inf, sort.by = "P") # or sort by adj.P.Val?
-    tt_summary <- summary(tt$logFC)
+    if (length(coef_to_test) == 0) {
+      message("No coefficients found for: ", bio, " -- skipping")
+      next
+    }
     
-    saveRDS(tt, file.path(data_dir, paste0(ct, "_", bio, "_topTable.rds")))
-    
-    ################################################# PLOTS #############################################
-    ######################################################################################################
-    
-    # # Volcano plot BASE R
-    # pdf(file.path(plots_dir, paste0(ct, "_DGE_", bio, "_volcano2.pdf")))
-    # print(plot_volcano(tt, test_name = bio, ct = ct))
-    # dev.off()
-    
-    ### Publication-ready volcano plot
-    
-    # Ensure Helvetica everywhere
-    theme_set(theme_classic(base_family = "Helvetica", base_size = 12))
-    
-    # Defensive checks
-    stopifnot(
-      "logFC" %in% colnames(tt),
-      "P.Value" %in% colnames(tt)
-    )
-    
-    # Transform rownames into colname of tt for labelling
-    tt$gene_symbol <- rownames(tt)
-    tt$gene_symbol <- as.character(tt$gene_symbol)
-    
-    # Ensure logFC and pvalue are numeric
-    tt$logFC    <- as.numeric(as.character(tt$logFC))
-    tt$P.Value  <- as.numeric(as.character(tt$P.Value))
-    
-    
-    
-    # Remove NA rows
-    tt <- tt[complete.cases(tt[, c("logFC", "P.Value")]), ]
-    pdf(
-      file.path(plots_dir, paste0(ct, "_volcano_", bio, ".pdf")),
-      width = 6.5,
-      height = 6
-    )
-    volcanoplot <- EnhancedVolcano(
-      tt,
-      lab = tt$gene_symbol,
-      x = "logFC",
-      y = "P.Value",
-      pCutoff = 0.05,
-      FCcutoff = 1,          # single abs value, not range i.e., 1 instead of c(-1, 1)
-      pointSize = 2.0,       # bigger points
-      labSize = 4.0,         # bigger labels
-      title = paste0(ct, " - ", bio),
-      subtitle = NULL,
-      caption = NULL
-    )
-    print(volcanoplot)
-    dev.off()
-    
-    # plot MA(mean-average)plot and voom mean-variance plot in one pdf
-    pdf(
-      file = file.path(
-        plots_dir,
-        paste0(ct, "_DGE_", bio, "_MAplot.pdf")
-      ),
-      width = 8,
-      height = 10
-    )
-    
-    ## 1. MA plot for sex
-    #print(colnames(fit_full$coefficients)) # to check for sex coefficient name
-    MAplot <- limma::plotMA(
-      fit_full,
-      coef = coef_to_test,
-      main = paste(ct, " - ", bio, " - MA plot"),
-      ylim = c(-4, 4)
-    )
-    print(MAplot)
-    dev.off()
-    
-    message("Completed contrast for ", bio)
+    # --- choose correct topTable settings
+    # 1 coef -> t-test -> can sort by P
+    # >1 coef -> overall F-test -> sort.by must be F or none
+    if (length(coef_to_test) == 1) {
+      tt <- topTable(fit_full, coef = coef_to_test, number = Inf, sort.by = "P")
+      tt_summary <- summary(tt$logFC)
+      
+      saveRDS(tt, file.path(data_dir, paste0(ct, "_", bio, "_topTable.rds")))
+      print(tt_summary)
+      
+    } else {
+      # overall test for the factor (e.g. smoking has Current + Previous)
+      tt <- topTable(fit_full, coef = coef_to_test, number = Inf, sort.by = "F")
+      
+      # F-test output does not always have logFC in the same way; so summarize P.Value if logFC absent
+      if ("logFC" %in% colnames(tt)) {
+        tt_summary <- summary(tt$logFC)
+        print(tt_summary)
+      } else if ("P.Value" %in% colnames(tt)) {
+        message("Multiple coefficients -> F-test. Summary of P.Value:")
+        print(summary(tt$P.Value))
+      }
+      
+      saveRDS(tt, file.path(data_dir, paste0(ct, "_", bio, "_topTable_Ftest.rds")))
+      
+      # OPTIONAL (comment out if you don’t want per-level results):
+      # also save each level separately as a standard t-test
+      for (one_coef in coef_to_test) {
+        tt_one <- topTable(fit_full, coef = one_coef, number = Inf, sort.by = "P")
+        saveRDS(tt_one, file.path(data_dir, paste0(ct, "_", one_coef, "_topTable.rds")))
+      }
+    }
   }
+  
+  ################################################# PLOTS #############################################
+  ######################################################################################################
+  
+  # # Volcano plot BASE R
+  # pdf(file.path(plots_dir, paste0(ct, "_DGE_", bio, "_volcano2.pdf")))
+  # print(plot_volcano(tt, test_name = bio, ct = ct))
+  # dev.off()
+  
+  ### Publication-ready volcano plot
+  
+  # Ensure Helvetica everywhere
+  theme_set(theme_classic(base_family = "Helvetica", base_size = 12))
+  
+  # Defensive checks
+  stopifnot(
+    "logFC" %in% colnames(tt),
+    "P.Value" %in% colnames(tt)
+  )
+  
+  # Transform rownames into colname of tt for labelling
+  tt$gene_symbol <- rownames(tt)
+  tt$gene_symbol <- as.character(tt$gene_symbol)
+  
+  # Ensure logFC and pvalue are numeric
+  tt$logFC    <- as.numeric(as.character(tt$logFC))
+  tt$P.Value  <- as.numeric(as.character(tt$P.Value))
+  
+  
+  
+  # Remove NA rows
+  tt <- tt[complete.cases(tt[, c("logFC", "P.Value")]), ]
+  pdf(
+    file.path(plots_dir, paste0(ct, "_volcano_", bio, ".pdf")),
+    width = 6.5,
+    height = 6
+  )
+  volcanoplot <- EnhancedVolcano(
+    tt,
+    lab = tt$gene_symbol,
+    x = "logFC",
+    y = "P.Value",
+    pCutoff = 0.05,
+    FCcutoff = 1,          # single abs value, not range i.e., 1 instead of c(-1, 1)
+    pointSize = 2.0,       # bigger points
+    labSize = 4.0,         # bigger labels
+    title = paste0(ct, " - ", bio),
+    subtitle = NULL,
+    caption = NULL
+  )
+  print(volcanoplot)
+  dev.off()
+  
+  # plot MA(mean-average)plot and voom mean-variance plot in one pdf
+  pdf(
+    file = file.path(
+      plots_dir,
+      paste0(ct, "_DGE_", bio, "_MAplot.pdf")
+    ),
+    width = 8,
+    height = 10
+  )
+  
+  ## 1. MA plot for sex
+  #print(colnames(fit_full$coefficients)) # to check for sex coefficient name
+  MAplot <- limma::plotMA(
+    fit_full,
+    coef = coef_to_test,
+    main = paste(ct, " - ", bio, " - MA plot"),
+    ylim = c(-4, 4)
+  )
+  print(MAplot)
+  dev.off()
+  
+  message("Completed contrast for ", bio)
+  
+  
   
   
   
