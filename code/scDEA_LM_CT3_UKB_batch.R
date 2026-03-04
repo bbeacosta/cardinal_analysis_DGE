@@ -210,7 +210,7 @@ for (ct in names(filtered_counts_list)) {
   bio_covs <- c("smoking_status_combined", "scaled_age", "sex", "scaled_bmi")
 
   # Metadata subset (remove NAs in pool_id if pool_id exists)
-  meta_all <- master_table_F3_donorL_use
+  meta_all <- master_table_F3_donorL
   if ("pool_id" %in% colnames(meta_all)) {
     meta_all <- meta_all[!is.na(meta_all$pool_id), , drop = FALSE]
   }
