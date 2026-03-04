@@ -9,7 +9,7 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 
 # DNAnexus project & output parent folder
 DX_PROJECT="project-Gx25k98J08pkk84J3V1JPPGY" 
-OUT_PARENT="/Beatrice/results_CT3_DGE/${timestamp}"
+OUT_PARENT="/Beatrice/results_CT3${timestamp}"
 
 # Where your repo is *on the machine you're launching from* (RAP RStudio session)
 REPO_LOCAL="$HOME/analysis_code/cardinal_analysis_DGE"
