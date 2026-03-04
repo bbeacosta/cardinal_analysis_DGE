@@ -35,6 +35,9 @@ echo "Working directory: $(pwd)"
 echo "Files present in cwd:"
 ls -lah
 
+# Ensure your script's hardcoded path exists
+mkdir -p /home/rstudio-server
+
 echo "Unpacking repo tar: $REPO_TAR"
 tar -xzf "$REPO_TAR"
 
@@ -42,7 +45,7 @@ cd cardinal_analysis_DGE
 echo "Repo unpacked. Current dir: $(pwd)"
 ls -lah
 
-echo "Running wrapper (note: wrapper is staged one dir up)"
+echo "Running wrapper (wrapper is staged one dir up)"
 Rscript ../dge_run.R \
   --celltype "ALL" \
   --main_r "${MAIN_R}" \
@@ -50,5 +53,27 @@ Rscript ../dge_run.R \
   --pca_list "../${PCA}" \
   --master_meta "../${META}" \
   --phenos "../${PHENOS}"
+
+echo "R finished. Listing /home/rstudio-server:"
+ls -lah /home/rstudio-server || true
+
+#############################################
+# DNAnexus upload: copy outputs to /home/dnanexus/out
+# Anything under /home/dnanexus/out is auto-uploaded
+#############################################
+mkdir -p /home/dnanexus/out
+
+# Copy only if they exist (avoid failing if a folder wasn't created)
+for d in results_DGE results_DGE_csv results_DGE_csv_annotated; do
+  if [ -d "/home/rstudio-server/${d}" ]; then
+    echo "Copying /home/rstudio-server/${d} -> /home/dnanexus/out/${d}"
+    cp -a "/home/rstudio-server/${d}" "/home/dnanexus/out/${d}"
+  else
+    echo "Not found (skipping): /home/rstudio-server/${d}"
+  fi
+done
+
+echo "Final contents of /home/dnanexus/out:"
+find /home/dnanexus/out -maxdepth 3 -type f | head -n 200
 
 echo "Job finished."
