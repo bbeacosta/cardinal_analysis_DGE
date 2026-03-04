@@ -1,94 +1,87 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-timestamp=$(date +%Y%m%d_%H%M%S)
+############################################
+# USER SETTINGS (EDIT THESE ONLY IF NEEDED)
+############################################
 
-############################
-# 1) SETTINGS #
-############################
+# DNAnexus destination where outputs will be uploaded
+DX_OUT="Beatrice/results_CT3/results_DGE_batch_fullrun"
 
-# DNAnexus project & output parent folder
-DX_PROJECT="project-Gx25k98J08pkk84J3V1JPPGY" 
-OUT_PARENT="/Beatrice/results_CT3${timestamp}"
+# Where to store the code bundle on DNAnexus
+DX_CODEDIR="Beatrice/dge_code_bundle"
 
-# Where your repo is *on the machine you're launching from* (RAP RStudio session)
-REPO_LOCAL="$HOME/analysis_code/cardinal_analysis_DGE"
+# DNAnexus inputs (must exist in your project)
+DX_FILTERED_COUNTS="Beatrice/results_CT3/filtered_counts_list.rds"
+DX_PCA_LIST="Beatrice/results_CT3/PCA_CT3/pca_list.rds"
+DX_MASTER_META="data/freeze3/F3_UKB_adata_obs_with_metadata.csv"
+DX_PHENOS="Daniela/data_F3/disease/cases_controls_all.tsv"
 
-# Entry scripts you will upload (from local machine to DNAnexus)
-RUNSH_LOCAL="${REPO_LOCAL}/run.sh"
-RWRAP_LOCAL="${REPO_LOCAL}/dge_run.R"
+# Your main pipeline script path INSIDE the repo (after unpack)
+MAIN_R="code/scDEA_LM_CT3_UKB_batch.R"   
 
-# Your main analysis script inside repo (will be *present in job* after we upload the repo tarball)
-MAIN_R_SCRIPT="code/scDEA_LM_CT3_UKB_batch.R"  
+# Instance type for the job
+INSTANCE="mem3_ssd1_v2_x48"
 
-# Main inputs stored on DNAnexus (use the DNAnexus paths, not local)
-# (adjust these to where you keep them in the project)
-FILTERED_COUNTS_DX="/Beatrice/results_CT3/filtered_counts_list.rds"
-PCA_LIST_DX="/Beatrice/results_CT3/PCA_CT3/pca_list.rds"
-MASTER_META_DX="/data/freeze3/F3_UKB_adata_obs_with_metadata.csv"
-PHENOS_DX="/Daniela/data_F3/disease/cases_controls_all.tsv"
+# Job name prefix
+STAMP="$(date +%Y%m%d_%H%M%S)"
+JOB_NAME="DGE_CT3_fullrun_${STAMP}"
 
-# Batch unit: cell types to run
-# Option 1: explicit list
-# CELLTYPES=("B_CD5" "B_memory_IGHMlow" "HSC_MPP")
-# Option 2 (recommended later): generate this list from filtered_counts_list.rds inside R, and pass --celltype from launcher.
+############################################
+# BUILD REPO TAR (from your current repo)
+############################################
 
-# Job resources
-INSTANCE_TYPE="mem3_ssd1_v2_x48"
-PRIORITY="high"
+# Expect to be run from inside the repo folder
+# i.e. ~/analysis_code/cardinal_analysis_DGE
+REPO_NAME="cardinal_analysis_DGE"
+TAR_NAME="${REPO_NAME}.tar.gz"
 
-##########################################
-# 2) PREPARE OUTPUT + UPLOAD CODE BUNDLE #
-##########################################
+echo "==> Creating repo tarball: ${TAR_NAME}"
+cd ..
+tar -czf "${TAR_NAME}" "${REPO_NAME}"
+cd "${REPO_NAME}"
 
-dx mkdir -p "${DX_PROJECT}:${OUT_PARENT}"
+############################################
+# UPLOAD BUNDLE + SCRIPTS
+############################################
 
-# Bundle your repo into a tar.gz so the job gets the exact code version you have
-# (this avoids needing git clone inside the job)
-echo "Bundling repo from ${REPO_LOCAL}"
-tar -czf cardinal_analysis_DGE_${timestamp}.tar.gz -C "$(dirname "$REPO_LOCAL")" "$(basename "$REPO_LOCAL")"
+echo "==> Creating output + code dirs (mkdir is safe; won't delete existing)"
+dx mkdir -p "${DX_CODEDIR}"
+dx mkdir -p "${DX_OUT}"
 
-# Upload tarball + run.sh + dge_run.R
-CODEDIR="${OUT_PARENT}/code"
-dx mkdir -p "${DX_PROJECT}:${CODEDIR}"
+echo "==> Uploading scripts to ${DX_CODEDIR}"
+dx upload launch_dge_batch.sh --path "${DX_CODEDIR}/launch_dge_batch.sh" --brief
+dx upload run.sh              --path "${DX_CODEDIR}/run.sh"              --brief
+dx upload dge_run.R           --path "${DX_CODEDIR}/dge_run.R"           --brief
 
-echo "Uploading code bundle + wrappers..."
-dx upload "cardinal_analysis_DGE_${timestamp}.tar.gz" --path "${DX_PROJECT}:${CODEDIR}/cardinal_analysis_DGE.tar.gz" --brief
-dx upload "${RUNSH_LOCAL}" --path "${DX_PROJECT}:${CODEDIR}/run.sh" --brief
-dx upload "${RWRAP_LOCAL}" --path "${DX_PROJECT}:${CODEDIR}/dge_run.R" --brief
+echo "==> Uploading repo tarball to ${DX_CODEDIR}"
+dx upload "../${TAR_NAME}" --path "${DX_CODEDIR}/${TAR_NAME}" --brief
 
-#####################################
-# 3) SUBMIT ONE JOB PER CELL TYPE   #
-#####################################
+############################################
+# LAUNCH ONE JOB (FULL RUN)
+############################################
 
-for ct in "${CELLTYPES[@]}"; do
-  OUTDIR="${OUT_PARENT}/${ct}"
-  dx mkdir -p "${DX_PROJECT}:${OUTDIR}"
+echo "==> Launching ONE job: ${JOB_NAME}"
 
-  echo "Submitting celltype job: ${ct}"
+dx run --brief --destination "${DX_OUT}" swiss-army-knife \
+  -iin="${DX_CODEDIR}/run.sh" \
+  -iin="${DX_CODEDIR}/dge_run.R" \
+  -iin="${DX_CODEDIR}/${TAR_NAME}" \
+  -iin="${DX_FILTERED_COUNTS}" \
+  -iin="${DX_PCA_LIST}" \
+  -iin="${DX_MASTER_META}" \
+  -iin="${DX_PHENOS}" \
+  --instance-type "${INSTANCE}" \
+  --name "${JOB_NAME}" \
+  -icmd="bash run.sh \
+    --repo_tar ${TAR_NAME} \
+    --main_r ${MAIN_R} \
+    --filtered_counts $(basename ${DX_FILTERED_COUNTS}) \
+    --pca_list $(basename ${DX_PCA_LIST}) \
+    --master_meta $(basename ${DX_MASTER_META}) \
+    --phenos $(basename ${DX_PHENOS}) \
+    --dx_out ${DX_OUT}" \
+  --priority high \
+  --yes
 
-  dx run swiss-army-knife \
-    --brief \
-    --destination "${DX_PROJECT}:${OUTDIR}" \
-    --instance-type "${INSTANCE_TYPE}" \
-    --priority "${PRIORITY}" \
-    --name "DGE_${ct}_${timestamp}" \
-    -iin "${DX_PROJECT}:${CODEDIR}/cardinal_analysis_DGE.tar.gz" \
-    -iin "${DX_PROJECT}:${CODEDIR}/run.sh" \
-    -iin "${DX_PROJECT}:${CODEDIR}/dge_run.R" \
-    -iin "${DX_PROJECT}:${FILTERED_COUNTS_DX}" \
-    -iin "${DX_PROJECT}:${PCA_LIST_DX}" \
-    -iin "${DX_PROJECT}:${MASTER_META_DX}" \
-    -iin "${DX_PROJECT}:${PHENOS_DX}" \
-    -icmd "bash run.sh \
-      --celltype '${ct}' \
-      --repo_tar 'cardinal_analysis_DGE.tar.gz' \
-      --main_r '${MAIN_R_SCRIPT}' \
-      --filtered_counts '$(basename ${FILTERED_COUNTS_DX})' \
-      --pca_list '$(basename ${PCA_LIST_DX})' \
-      --master_meta '$(basename ${MASTER_META_DX})' \
-      --phenos '$(basename ${PHENOS_DX})'" \
-    --yes
-done
-
-echo "All jobs submitted. Outputs under: ${OUT_PARENT}"
+echo "==> Submitted. Check Monitor tab in DNAnexus for job: ${JOB_NAME}"
