@@ -2,22 +2,24 @@
 # scDEA_LM_CT3_UKB_batch.R 
 
 ##################################### LINEAR MODEL FOR DGE ###################################
-
-# ---------------- PACKAGE SETUP (safer for batch jobs) ----------------
-options(repos = c(CRAN = "https://cloud.r-project.org"))
-options(stringsAsFactors = FALSE)
-
+# ---------------- PACKAGE SETUP (DNAnexus / batch safe) ----------------
+# Force Bioconductor version compatible with R 4.4
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
-}
-if (!requireNamespace("remotes", quietly = TRUE)) {
-  install.packages("remotes")
+  install.packages("BiocManager", repos = "https://cloud.r-project.org")
 }
 
-# Required packages (CRAN + Bioconductor)
+# This sets the Bioconductor version for the current R
+BiocManager::install(version = "3.20", ask = FALSE, update = FALSE)
+options(repos = BiocManager::repositories())  # make sure repos are aligned
+
+if (!requireNamespace("remotes", quietly = TRUE)) {
+  install.packages("remotes", repos = "https://cloud.r-project.org")
+}
+
+# Required packages (REMOVE optparse here)
 pkgs <- c(
   "edgeR","limma","tidyr","dplyr","ggplot2","EnhancedVolcano",
-  "optparse","stringi","tools","stringr","tibble","pheatmap",
+  "stringi","tools","stringr","tibble","pheatmap",
   "EnsDb.Hsapiens.v86","AnnotationDbi","fs","viridis"
 )
 
@@ -31,16 +33,17 @@ if (length(missing) > 0) {
 
 # ggrepel pin only if missing or wrong version
 if (!requireNamespace("ggrepel", quietly = TRUE) ||
-    as.character(utils::packageVersion("ggrepel")) != "0.9.6") {
+    as.character(packageVersion("ggrepel")) != "0.9.6") {
   remotes::install_version("ggrepel", version = "0.9.6", repos = "https://cloud.r-project.org")
 }
 
 suppressPackageStartupMessages({
   library(edgeR); library(limma); library(tidyr); library(dplyr); library(ggplot2)
-  library(EnhancedVolcano); library(optparse); library(stringr); library(stringi)
+  library(EnhancedVolcano); library(stringr); library(stringi)
   library(tibble); library(pheatmap); library(EnsDb.Hsapiens.v86); library(AnnotationDbi)
-  library(fs); library(viridis); library(tools)
+  library(fs); library(viridis)
 })
+# ----------------------------------------------------------------------
 # ---------------------------------------------------------------------
 
 # ---------------- PATHS (single source of truth) ----------------
