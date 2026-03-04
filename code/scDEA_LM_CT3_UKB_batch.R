@@ -3,44 +3,44 @@
 #----------------------------------------- FREEZE 3 -----------------------------------------------
 
 ##################################### LINEAR MODEL FOR DGE ###################################
-# Load necessary libraries
-.libPaths()
-
-# Install packages
-# Ensure BiocManager is available
+# ---------------- PACKAGE SETUP (safe for batch jobs) ----------------
 if (!requireNamespace("BiocManager", quietly = TRUE)) {
-  install.packages("BiocManager")
+  install.packages("BiocManager", repos = "https://cloud.r-project.org")
 }
 
-# Intall compatible version of ggrepel or it won't install EnhancedVolcano on this R module version on cluster
-install.packages("remotes", repos = "https://cloud.r-project.org")
+if (!requireNamespace("remotes", quietly = TRUE)) {
+  install.packages("remotes", repos = "https://cloud.r-project.org")
+}
 
-remotes::install_version(
-  "ggrepel",
-  version = "0.9.6",
-  repos = "https://cloud.r-project.org"
-)
-
-# Full package list
+# Required packages
 pkgs <- c(
-  "edgeR",
-  "limma",
-  "tidyr",
-  "dplyr",
-  "ggplot2",
-  "EnhancedVolcano",
-  "optparse",
-  "stringi",
-  "tools",
-  "stringr",
-  "tibble",
-  "pheatmap",
-  "EnsDb.Hsapiens.v86",
-  "AnnotationDbi"
+  "edgeR","limma","tidyr","dplyr","ggplot2","EnhancedVolcano",
+  "optparse","stringi","tools","stringr","tibble","pheatmap",
+  "EnsDb.Hsapiens.v86","AnnotationDbi","fs","viridis"
 )
 
-# Install everything (BiocManager handles both CRAN + Bioconductor)
-BiocManager::install(pkgs, ask = FALSE, update = FALSE)
+# Install only missing
+installed <- rownames(installed.packages())
+missing <- setdiff(pkgs, installed)
+
+if (length(missing) > 0) {
+  message("Installing missing packages: ", paste(missing, collapse=", "))
+  BiocManager::install(missing, ask = FALSE, update = FALSE)
+}
+
+# ggrepel pin only if missing or wrong version
+if (!requireNamespace("ggrepel", quietly = TRUE) ||
+    as.character(packageVersion("ggrepel")) != "0.9.6") {
+  remotes::install_version("ggrepel", version = "0.9.6", repos = "https://cloud.r-project.org")
+}
+
+suppressPackageStartupMessages({
+  library(edgeR); library(limma); library(tidyr); library(dplyr); library(ggplot2)
+  library(EnhancedVolcano); library(optparse); library(stringr); library(stringi)
+  library(tibble); library(pheatmap); library(EnsDb.Hsapiens.v86); library(AnnotationDbi)
+  library(fs); library(viridis)
+})
+# ---------------------------------------------------------------------
 
 # Load libraries
 library(edgeR)
