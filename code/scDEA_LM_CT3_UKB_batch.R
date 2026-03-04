@@ -141,15 +141,38 @@ case_counts <- list()
 qc_metrics <- list()
 
 # ---------------- IMPORTANT: ensure donor-level metadata exists ----------------
-# Your original pasted code uses master_table_F3_donorL but does not create it.
-# We try to use it if it exists; otherwise, we fall back to master_table_F3.
-# If your pipeline *requires* donor-level aggregation, you should replace this fallback with your real donor-level creation step.
-if (exists("master_table_F3_donorL")) {
-  master_table_F3_donorL_use <- get("master_table_F3_donorL")
-} else {
-  master_table_F3_donorL_use <- master_table_F3
-  message("WARNING: master_table_F3_donorL not found in script; using master_table_F3 as fallback.")
-}
+# Remove NAs from $unique_id column
+phenotypes <- phenotypes[!is.na(phenotypes$eid), ]
+
+# Check I have only non-caucasian donors and no duplicates in metadata
+# Metadata are cell-level, so I need to transform them to donor-level data
+unique(master_table_F3$ancestry)
+
+master_table_F3_donorL <- master_table_F3 %>%
+  dplyr::select(
+    eid,
+    donor_uid_tpd,
+    tranche_id,
+    pool_id,
+    sex,
+    age,
+    bmi,
+    smoking_status_combined, 
+    smoking_status_numeric
+  ) %>%
+  distinct()
+
+any(duplicated(master_table_F3_donorL$eid)) # should return FALSE
+
+master_table_F3_donorL <- master_table_F3_donorL %>%
+  dplyr::mutate(
+    donor_uid_tpd_norm = donor_uid_tpd %>%
+      str_replace_all("\r", "") %>%   # just in case there are hidden CR chars
+      str_trim() %>%
+      str_replace_all("__", "-") %>%  # handle any __ cases too
+      str_replace_all("--", "-")      # convert -- to single dash
+  )
+
 
 # ================= MAIN LOOP =================
 for (ct in names(filtered_counts_list)) {
