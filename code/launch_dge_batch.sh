@@ -9,7 +9,7 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 
 # DNAnexus project & output parent folder
 DX_PROJECT="project-Gx25k98J08pkk84J3V1JPPGY" 
-OUT_PARENT="/Beatrice/results_CT3/${timestamp}"
+OUT_PARENT="/Beatrice/results_CT3_DGE/${timestamp}"
 
 # Where your repo is *on the machine you're launching from* (RAP RStudio session)
 REPO_LOCAL="$HOME/analysis_code/cardinal_analysis_DGE"
@@ -30,7 +30,7 @@ PHENOS_DX="/Daniela/data_F3/disease/cases_controls_all.tsv"
 
 # Batch unit: cell types to run
 # Option 1: explicit list
-CELLTYPES=("B_CD5" "B_memory_IGHMlow" "HSC_MPP")
+# CELLTYPES=("B_CD5" "B_memory_IGHMlow" "HSC_MPP")
 # Option 2 (recommended later): generate this list from filtered_counts_list.rds inside R, and pass --celltype from launcher.
 
 # Job resources
