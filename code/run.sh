@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  cat <<EOF
+  cat <<'EOF'
 run.sh --repo_tar cardinal_analysis_DGE.tar.gz --main_r code/script.R
        --filtered_counts filtered_counts_list.rds --pca_list pca_list.rds
        --master_meta F3_UKB_adata_obs_with_metadata.csv --phenos cases_controls_all.tsv
@@ -31,21 +31,26 @@ done
 
 [[ -n "$REPO_TAR" && -n "$MAIN_R" && -n "$FILTERED" && -n "$PCA" && -n "$META" && -n "$PHENOS" ]] || usage
 
+echo "=============================="
 echo "Working directory: $(pwd)"
 echo "Files present in cwd:"
 ls -lah
+echo "=============================="
 
-# Ensure your script's hardcoded path exists
+# Swiss-army-knife stages inputs under /home/dnanexus/in/in
+# Make sure your script's hardcoded path exists
 mkdir -p /home/rstudio-server
 
-echo "Unpacking repo tar: $REPO_TAR"
+echo "==> Unpacking repo tar: $REPO_TAR"
 tar -xzf "$REPO_TAR"
 
+# repo folder name after unpack (must match tar creation)
 cd cardinal_analysis_DGE
-echo "Repo unpacked. Current dir: $(pwd)"
+echo "==> Repo unpacked. Current dir: $(pwd)"
 ls -lah
 
-echo "Running wrapper (wrapper is staged one dir up)"
+echo "==> Running wrapper (wrapper is staged one dir up)"
+# dge_run.R is staged in the job's working dir (one level above repo folder)
 Rscript ../dge_run.R \
   --celltype "ALL" \
   --main_r "${MAIN_R}" \
@@ -54,7 +59,8 @@ Rscript ../dge_run.R \
   --master_meta "../${META}" \
   --phenos "../${PHENOS}"
 
-echo "R finished. Listing /home/rstudio-server:"
+echo "==> R finished."
+echo "Listing /home/rstudio-server:"
 ls -lah /home/rstudio-server || true
 
 #############################################
@@ -66,14 +72,15 @@ mkdir -p /home/dnanexus/out
 # Copy only if they exist (avoid failing if a folder wasn't created)
 for d in results_DGE results_DGE_csv results_DGE_csv_annotated; do
   if [ -d "/home/rstudio-server/${d}" ]; then
-    echo "Copying /home/rstudio-server/${d} -> /home/dnanexus/out/${d}"
+    echo "==> Copying /home/rstudio-server/${d} -> /home/dnanexus/out/${d}"
+    rm -rf "/home/dnanexus/out/${d}" 2>/dev/null || true
     cp -a "/home/rstudio-server/${d}" "/home/dnanexus/out/${d}"
   else
-    echo "Not found (skipping): /home/rstudio-server/${d}"
+    echo "==> Not found (skipping): /home/rstudio-server/${d}"
   fi
 done
 
-echo "Final contents of /home/dnanexus/out:"
-find /home/dnanexus/out -maxdepth 3 -type f | head -n 200
+echo "==> Final contents of /home/dnanexus/out (first 200 files):"
+find /home/dnanexus/out -type f | head -n 200
 
-echo "Job finished."
+echo "==> Job finished."
