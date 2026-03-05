@@ -442,7 +442,7 @@ qc_metrics <- list()
 # counts_list[["T_CD8_prolif"]] <- NULL
 # 
 
- ct <- "B_exhausted"   
+ # ct <- "B_exhausted"   
 
 # ct <- "B_memory_IGHMhigh_IFN"
 
@@ -769,11 +769,11 @@ for (ct in names(filtered_counts_list)) {
   saveRDS(fit_full, file.path(data_dir, paste0(ct, "_fit_full.rds")))
   
   # Compute variance explained per covariate
-  ss_total <- rowSums((vobj$E - rowMeans(vobj$E))^2)
-  for (term in colnames(design)) {
-    ss_term <- rowSums((design[, term] * coef(fit_full)[, term])^2)
-    variance_explained_list[[ct]][[term]] <- mean(ss_term / ss_total, na.rm=TRUE)
-  }
+  # ss_total <- rowSums((vobj$E - rowMeans(vobj$E))^2)
+  # for (term in colnames(design)) {
+  #   ss_term <- rowSums((design[, term] * coef(fit_full)[, term])^2)
+  #   variance_explained_list[[ct]][[term]] <- mean(ss_term / ss_total, na.rm=TRUE)
+  # }
   
   # ----- Test each bio covariate by dropping it -----
   

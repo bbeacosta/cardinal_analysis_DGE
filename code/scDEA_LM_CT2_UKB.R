@@ -371,7 +371,9 @@ qc_metrics <- list()
  # ct <- "B_naive"   
 # ct <- "HSC_MPP"
 
-for (ct in names(filtered_counts_list)) {
+start_idx <- which(names(filtered_counts_list) == "HSC_MPP")
+
+for (ct in names(filtered_counts_list)[start_idx:length(filtered_counts_list)]) {
   message("\n===== CELL TYPE: ", ct, " =====")
   
   # Iteratively create results folders for specific outputs
@@ -432,10 +434,15 @@ for (ct in names(filtered_counts_list)) {
   
   # Optional but recommended: set biologically meaningful reference
   # adjust levels as appropriate for your encoding
-  levels(meta_sub$smoking_status_combined)
-  meta_sub$smoking_status_combined <- relevel(meta_sub$smoking_status_combined, ref = "Never")
   
   
+  meta_sub$smoking_status_combined <- factor(meta_sub$smoking_status_combined)
+  if ("Never" %in% levels(meta_sub$smoking_status_combined)) {
+    meta_sub$smoking_status_combined <- relevel(meta_sub$smoking_status_combined, ref = "Never")
+  } else {
+    message("No 'Never' level in smoking_status_combined for this CT; leaving default reference: ",
+            levels(meta_sub$smoking_status_combined)[1])
+  }
   # Scale continuous variables so that they all have mean = 0 and sd = 1, to improve model stability and make effect sizes comparable
   # When covariates have different numeric scales, scaling makes all covariates comparable in scale, helping model algorithm converge faster and more reliably
   meta_sub$scaled_age <- as.numeric(scale(meta_sub$age))
@@ -464,6 +471,11 @@ for (ct in names(filtered_counts_list)) {
     meta_sub[[ scaled_pc_names[i] ]] <- as.numeric(scale(meta_sub[[ pc_cols_use[i] ]]))
   }
   
+  # Skip if PCs were not generated for this cell type
+  if (length(scaled_pc_names) == 0 || !all(scaled_pc_names %in% colnames(meta_sub))) {
+    message("Skipping PC-based analysis for ", ct, ": PCs not available")
+    next
+  }
   
   # ----- Convert categorical vars to factors -----
   for (v in colnames(meta_sub)) {
