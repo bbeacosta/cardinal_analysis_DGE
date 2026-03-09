@@ -1330,10 +1330,10 @@ library(stringr)
 library(stringi)
 
 # Input root directory
-input_root <- "/home/ivm/CT3_DGE_analysis/"
+input_root <- "/home/rstudio-server/results_DGE/"
 
 # Output root directory
-output_root <- "/home/ivm/CT3_DGE_analysis_csv/"
+output_root <- "/home/rstudio-server/results_DGE_csv/"
 
 # Create output root if not exists
 if (!dir.exists(output_root)) dir.create(output_root, recursive = TRUE)
@@ -1405,8 +1405,8 @@ library(stringr)
 # head(B_exhausted)
 
 # Directories
-input_root <- "/home/ivm/CT3_DGE_analysis_csv"
-output_root <- "/home/ivm/CT3_DGE_analysis_csv_annotated"
+input_root <- "/home/rstudio-server/results_DGE_csv/"
+output_root <- "/home/rstudio-server/results_DGE_csv_annotated"
 
 if (!dir.exists(output_root)) dir.create(output_root, recursive = TRUE)
 
@@ -1431,7 +1431,7 @@ csv_files <- csv_files[!basename(csv_files) %in% exclude_files]
 edb <- EnsDb.Hsapiens.v86
 gene_map <- genes(edb, return.type = "DataFrame") %>%
   as.data.frame() %>%
-  select(gene_id, gene_name) %>%
+  dplyr::select(gene_id, gene_name) %>%
   distinct()
 
 names(gene_map) <- c("ensembl_id", "gene_name")
@@ -1498,7 +1498,7 @@ library(tibble)
 #----------------------------------------------------------
 # 1. Load all CSVs and compute DEG proportions
 #----------------------------------------------------------
-main_dir <- "/home/ivm/CT3_DGE_analysis_csv_annotated"
+main_dir <- "/home/rstudio-server/results_DGE_csv_annotated"
 
 ct_dirs <- list.dirs(main_dir, recursive = FALSE, full.names = TRUE)
 
@@ -1551,13 +1551,13 @@ deg_df <- bind_rows(deg_list)
 #----------------------------------------------------------
 # 3. Order columns: first bio covs, then diseases
 #----------------------------------------------------------
-bio_covs <- c("scaled_age", "scaled_BMI", "sex", "ancestry")
+bio_covs <- c("scaled_age", "scaled_bmi", "sex", "smoking_status_combined")
 
 deg_df <- deg_df %>%
   mutate(trait_type = ifelse(trait %in% bio_covs, "bio_cov", "disease")) %>%
   arrange(trait_type, trait)
 
-write.csv(deg_df, file = "/home/ivm/CT3_DGE_analysis_csv_annotated/degs_summary_table_DiseasexCelltype.csv", row.names = FALSE)
+write.csv(deg_df, file = "/home/rstudio-server/results_DGE_csv_annotated/degs_summary_table_DiseasexCelltype.csv", row.names = FALSE)
 
 #----------------------------------------------------------
 # 4. Heatmap (pheatmap)
@@ -1577,7 +1577,7 @@ deg_wide_prop <- deg_df %>%
 # Now check for duplicates
 anyDuplicated(deg_wide_prop$celltype)   # should be 0
 
-write.csv(deg_wide_prop, file = "/home/ivm/CT3_DGE_analysis_csv_annotated/degs_wide_prop_DiseasexCelltype.csv", row.names = FALSE)
+write.csv(deg_wide_prop, file = "/home/rstudio-server/results_DGE_csv_annotated/degs_wide_prop_DiseasexCelltype.csv", row.names = FALSE)
 
 # Convert to matrix
 deg_mat_prop <- deg_wide_prop %>%
@@ -1598,7 +1598,7 @@ gap_pos <- sum(colnames(deg_mat_prop) %in% bio_covs)
 
 
 # Save
-pdf("/home/ivm/CT3_DGE_analysis_csv_annotated/heatmap_deg_proportion_all.pdf", width=18, height=13)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_proportion_all.pdf", width=18, height=13)
 pheatmap(
   mat = deg_mat_prop[,-(52:53)], # to remove the first 4 biocovs whose much higher values that were skewing all the palette
   cluster_rows = FALSE,
@@ -1618,7 +1618,7 @@ pheatmap(
 dev.off()
 
 # Save
-pdf("/home/ivm/CT3_DGE_analysis_csv_annotated/heatmap_deg_proportion_diseasesOnly.pdf", width=18, height=13)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_proportion_diseasesOnly.pdf", width=18, height=13)
 pheatmap(
   mat = deg_mat_prop[,-c(1:4, 52:53)], # to remove the first 4 biocovs that were skewing all the palette
   cluster_rows = FALSE,
@@ -1638,7 +1638,7 @@ pheatmap(
 dev.off()
 
 # Save
-pdf("/home/ivm/CT3_DGE_analysis_csv_annotated/heatmap_deg_proportion_biocovsOnly.pdf", width = 7, height=13)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_proportion_biocovsOnly.pdf", width = 7, height=13)
 pheatmap(
   mat = deg_mat_prop[, 1:4], # to remove the first 4 biocovs that were skewing all the palette
   cluster_rows = FALSE,
@@ -1687,7 +1687,7 @@ head(deg_mat_abs)
 
 # Now plot absolute number of DEGs
 # Save
-pdf("/home/ivm/CT3_DGE_analysis_csv_annotated/heatmap_deg_absNumber_all.pdf", width=18, height=13)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_absNumber_all.pdf", width=18, height=13)
 pheatmap(
   mat = deg_mat_abs[,-(52:53)], # to remove the first 4 biocovs whose much higher values that were skewing all the palette
   cluster_rows = FALSE,
@@ -1707,7 +1707,7 @@ pheatmap(
 dev.off()
 
 # Save
-pdf("/home/ivm/CT3_DGE_analysis_csv_annotated/heatmap_deg_absNumber_diseasesOnly.pdf", width=18, height=13)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_absNumber_diseasesOnly.pdf", width=18, height=13)
 pheatmap(
   mat = deg_mat_abs[,-c(1:4, 52:53)], # to remove the first 4 biocovs that were skewing all the palette
   cluster_rows = FALSE,
@@ -1727,7 +1727,7 @@ pheatmap(
 dev.off()
 
 # Save
-pdf("/home/ivm/CT3_DGE_analysis_csv_annotated/heatmap_deg_absNumber_biocovsOnly.pdf", width=7, height=13)
+pdf("/home/rstudio-server/results_DGE_csv_annotated/heatmap_deg_absNumber_biocovsOnly.pdf", width=7, height=13)
 pheatmap(
   mat = deg_mat_abs[, 1:4], # to remove the first 4 biocovs that were skewing all the palette
   cluster_rows = FALSE,
@@ -1761,13 +1761,16 @@ library(EnhancedVolcano)
 # print(filtered_diseases) # for info about available diseases analysed after filtering for minimum number of cases (n>=50)
 
 # Select traits for volcano plots - based on Giuditta's analyses
-selected_traits <- c("AB1_INTESTINAL_INFECTIONS", "D3_ANAEMIA_IRONDEF", "E4_HYTHY_AI_STRICT", "E4_OBESITY", "E4_HYPERCHOL", "E4_LIPOPROT", "H8_EXTERNAL", "H8_OTHEREAR", "I9_HYPTENS", 
-                     "I9_HYPTENSESS", "I9_IHD", "J10_ASTHMA_EXMORE", "J10_PNEUMONIA", "K11_CHOLELITH", "HYPOTHYROIDISM", "MDD", "T2D", "sex", "ancestry", "scaled_age", "scaled_BMI"
+selected_traits <- c("AB1_INTESTINAL_INFECTIONS", "D3_ANAEMIA_IRONDEF", "E4_HYTHY_AI_STRICT", "E4_OBESITY", 
+                     "E4_HYPERCHOL", "E4_LIPOPROT", "H8_EXTERNAL", "H8_OTHEREAR", "I9_HYPTENS", 
+                     "I9_HYPTENSESS", "I9_AF", "I9_ANGINA", "I9_CORATHER", "I9_IHD", "J10_ASTHMA_EXMORE", 
+                     "J10_PNEUMONIA", "K11_CHOLELITH", "K11_HERNIA", "HYPOTHYROIDISM", 
+                     "MDD", "T2D", "sex", "smoking_status_combined", "scaled_age", "scaled_bmi"
 ) 
 
 
 # Directory where annotated DEG CSVs are saved
-data_root <- "/home/ivm/CT3_DGE_analysis_csv_annotated/" # adjust to your root folder
+data_root <- "/home/rstudio-server/results_DGE_csv_annotated/" # adjust to your root folder
 celltypes_all <- list.dirs(data_root, recursive = FALSE, full.names = FALSE)
 
 # # Select list of cell types of interest 
