@@ -1795,8 +1795,8 @@ for(ct in celltypes_all){
     next
   }
   
-  plot_dir <- file.path(data_root, ct, "plots_FDR0.05_LogFC1")
-  # plot_dir <- file.path(data_root, ct, "plots_FDR0.05_LogFC0.5")
+  # plot_dir <- file.path(data_root, ct, "plots_FDR0.05_LogFC1")
+  plot_dir <- file.path(data_root, ct, "plots_FDR0.05_LogFC0.5")
   dir.create(plot_dir, showWarnings = FALSE)
   
   # Subset list of csvs based on traits of interest
@@ -1920,9 +1920,9 @@ for(ct in celltypes_all){
     
     # Create argument for custom color dots
     keyvals <- ifelse(
-      tt$SigAdj & abs(tt$logFC) >= 1, "Adj.P.Val & Log2FC", # Adjust if LogFC threshold changes
+      tt$SigAdj & abs(tt$logFC) >= 0.5, "Adj.P.Val & Log2FC", # Adjust if LogFC threshold changes
       ifelse(tt$SigAdj, "Adj.P.Val",
-             ifelse(abs(tt$logFC) >= 1, "Log2FC", "NS")) # Adjust if LogFC threshold changes
+             ifelse(abs(tt$logFC) >= 0.5, "Log2FC", "NS")) # Adjust if LogFC threshold changes
     )
     
     keyvals <- factor(
@@ -1955,7 +1955,7 @@ for(ct in celltypes_all){
                              x = 'logFC',
                              y = 'P.Value',
                              pCutoff = 0.05,
-                             FCcutoff = 1,
+                             FCcutoff = 0.5,
                              selectLab = top_genes,
                              title = paste0("DGE by ", trait, " - ", ct),
                              subtitle = "Raw p-values (y), FDR-based significance",
