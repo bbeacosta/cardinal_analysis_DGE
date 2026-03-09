@@ -1813,6 +1813,13 @@ for(ct in celltypes_all){
   for(csv in csv_files){
     fname <- basename(csv)
     
+    # F-test tables don't have logFC cols, so skip those files for smoking status
+    # Skip F-test outputs (no single logFC)
+    if (grepl("_Ftest_", fname, ignore.case = TRUE) || grepl("topTable_Ftest", fname, ignore.case = TRUE)) {
+      message("Skipping F-test file (no logFC): ", fname)
+      next
+    }
+    
     print(fname)
     # Define trait
     ## Case 1: disease traits (unchanged)
@@ -1825,18 +1832,19 @@ for(ct in celltypes_all){
     } else {
       
       ## Case 2: biological covariates
-      ## extract trait by matching selected_traits
-      trait <- selected_traits[
+      ## match selected_traits when followed by "_" OR immediately followed by letters (factor levels)
+      trait_hits <- selected_traits[
         sapply(selected_traits, function(t)
-          grepl(paste0("_", t, "_"), fname))
+          grepl(paste0("_", t, "($|_|[A-Za-z])"), fname)
+        )
       ]
       
-      if (length(trait) == 0) {
+      if (length(trait_hits) == 0) {
         message("Skipping file (no matching trait): ", fname)
         next
       }
       
-      trait <- trait[1]  # safety
+      trait <- trait_hits[1]  # keep first match
     }
     
     
@@ -1965,37 +1973,6 @@ for(ct in celltypes_all){
     #dev.off()
   }
 }
-
-
-
-
-############ Remove recursively from /data/celltype_merged_pheno_annotated.csv (donor-level info), ready for export TRE
-root_dir <- "/home/ivm/CT3_DGE_analysis_csv_annotated/"
-
-# Construct expected file paths
-files_to_delete <- file.path(
-  root_dir,
-  celltypes_all,
-  "data",
-  paste0(celltypes_all, "_merged_pheno_annotated.csv")
-)
-
-# Keep only files that actually exist
-files_to_delete <- files_to_delete[file.exists(files_to_delete)]
-
-# Inspect before deleting
-cat("Files to delete:\n")
-print(files_to_delete)
-cat("\nTotal:", length(files_to_delete), "\n")
-
-# Delete
-if (length(files_to_delete) > 0) {
-  removal_status <- file.remove(files_to_delete)
-  cat("\nSuccessfully removed:", sum(removal_status), "files\n")
-} else {
-  cat("\nNo matching files found.\n")
-}
-
 
 
 
